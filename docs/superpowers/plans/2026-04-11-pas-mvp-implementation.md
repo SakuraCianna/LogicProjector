@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first usable Pas MVP: a teacher-facing flow that accepts Java algorithm code, auto-detects supported algorithms, generates a deterministic visualization payload with AI-written teaching copy, and plays the result in the Vue frontend.
+**Goal:** Build the first usable Pas MVP: a teacher-facing flow that accepts Java algorithm code, auto-detects supported algorithms, generates a deterministic visualization payload with AI-written teaching copy, and plays the result in the Vue frontend, while reserving a clean Python worker path for later video export.
 
-**Architecture:** Use the existing Spring Boot app as the single backend for task orchestration, persistence, deterministic algorithm state extraction, billing, and AI integration. Use the existing Vue app as a single-page client for code submission and guided playback. Keep the system honest by separating AI-written narration from deterministic execution state.
+**Architecture:** Use Spring Boot as the business backend and system of record for users, login, credits, tasks, billing, logs, algorithm recognition, and visualization payloads. Use Vue as the teacher-facing client for code submission and guided playback. Use FastAPI/Python as a separate media worker for later export jobs such as subtitles, TTS voiceover, ffmpeg composition, and AI media enhancement; do not move core business state into Python.
 
-**Tech Stack:** Spring Boot 3.5, Java 21, Spring Web, Spring Data JPA, H2 (development DB), WebClient, Vue 3, TypeScript, Vite, Vitest
+**Tech Stack:** Spring Boot 3.5, Java 21, Spring Web, Spring Data JPA, H2 (development DB), WebClient, Vue 3, TypeScript, Vite, Vitest, FastAPI, ffmpeg
 
 ---
 
-> This workspace is not currently a git repository. Run `git init` at `E:\CodeHome\LogicProjector` before executing any commit steps below.
+> Git repository confirmed at `E:\CodeHome\LogicProjector`.
 
 ## File Structure
 
@@ -119,6 +119,35 @@
   Verifies array rendering for a known payload.
 - Test: `VueFrontend/src/App.spec.ts`
   Verifies the app transitions from submit state to playback state.
+
+### Python worker files
+
+- Modify: `FastBackend/requirements.txt`
+  Adds FastAPI worker dependencies for media jobs.
+- Create: `FastBackend/app/main.py`
+  Worker API entrypoint.
+- Create: `FastBackend/app/models.py`
+  Request and response models for export jobs.
+- Create: `FastBackend/app/services/tts_service.py`
+  TTS adapter for later voice generation.
+- Create: `FastBackend/app/services/subtitle_service.py`
+  Subtitle timing and SRT/VTT generation.
+- Create: `FastBackend/app/services/video_compositor.py`
+  ffmpeg composition wrapper.
+- Create: `FastBackend/app/services/export_pipeline.py`
+  Orchestrates subtitle, optional TTS, and video composition steps.
+- Test: `FastBackend/tests/test_export_pipeline.py`
+  Verifies worker job assembly for a known visualization payload.
+
+## Release Boundary
+
+Tasks 1 through 7 are the actual MVP release scope and should ship first.
+
+- Spring Boot owns users, login, credits, tasks, billing, logs, algorithm recognition, and visualization payloads.
+- Vue owns code submission, guided playback, and the export entry point.
+- Python is intentionally introduced after the walkthrough MVP is stable, because its first real job is export-oriented media work rather than core business logic.
+
+Task 8 below is a post-MVP architecture task that prepares the Python worker without blocking MVP launch.
 
 ## Task 1: Backend Foundation And Persistence Bootstrap
 
@@ -1138,6 +1167,123 @@ git add SpringBackend/src/main/java/com/LogicProjector/generation/GenerationTask
 git commit -m "feat: wire end-to-end pas mvp flow"
 ```
 
+## Task 8: Python Export Worker Skeleton For Post-MVP Video Pipeline
+
+**Files:**
+- Modify: `FastBackend/requirements.txt`
+- Create: `FastBackend/app/main.py`
+- Create: `FastBackend/app/models.py`
+- Create: `FastBackend/app/services/tts_service.py`
+- Create: `FastBackend/app/services/subtitle_service.py`
+- Create: `FastBackend/app/services/video_compositor.py`
+- Create: `FastBackend/app/services/export_pipeline.py`
+- Test: `FastBackend/tests/test_export_pipeline.py`
+
+- [ ] **Step 1: Write the failing worker pipeline test**
+
+```python
+from app.services.export_pipeline import ExportPipeline
+
+
+def test_builds_export_job_with_subtitles_and_optional_tts():
+    payload = {
+        "task_id": 42,
+        "summary": "Quick sort picks a pivot and partitions the array.",
+        "steps": [
+            {"title": "Choose pivot", "narration": "Pick the last value as pivot", "arrayState": [5, 1, 4]}
+        ],
+        "subtitle_enabled": True,
+        "tts_enabled": True,
+    }
+
+    pipeline = ExportPipeline()
+    job = pipeline.build_job(payload)
+
+    assert job["task_id"] == 42
+    assert job["subtitle_path"].endswith(".srt")
+    assert job["audio_path"].endswith(".mp3")
+    assert job["ffmpeg_command"][0] == "ffmpeg"
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pytest FastBackend/tests/test_export_pipeline.py -v`
+Expected: FAIL because the worker app and export pipeline do not exist.
+
+- [ ] **Step 3: Create the minimal worker skeleton**
+
+```python
+# FastBackend/requirements.txt
+fastapi==0.115.12
+uvicorn==0.34.2
+pytest==8.3.5
+httpx==0.28.1
+pydantic==2.11.4
+```
+
+```python
+# FastBackend/app/models.py
+from pydantic import BaseModel
+
+
+class ExportRequest(BaseModel):
+    task_id: int
+    summary: str
+    steps: list[dict]
+    subtitle_enabled: bool = True
+    tts_enabled: bool = False
+
+
+class ExportResponse(BaseModel):
+    task_id: int
+    subtitle_path: str
+    audio_path: str | None
+    ffmpeg_command: list[str]
+```
+
+```python
+# FastBackend/app/services/export_pipeline.py
+class ExportPipeline:
+    def build_job(self, payload: dict) -> dict:
+        task_id = payload["task_id"]
+        subtitle_path = f"outputs/{task_id}.srt"
+        audio_path = f"outputs/{task_id}.mp3" if payload.get("tts_enabled") else None
+        ffmpeg_command = ["ffmpeg", "-i", f"outputs/{task_id}.mp4", subtitle_path]
+        return {
+            "task_id": task_id,
+            "subtitle_path": subtitle_path,
+            "audio_path": audio_path,
+            "ffmpeg_command": ffmpeg_command,
+        }
+```
+
+```python
+# FastBackend/app/main.py
+from fastapi import FastAPI
+from app.models import ExportRequest
+from app.services.export_pipeline import ExportPipeline
+
+app = FastAPI(title="Pas Media Worker")
+pipeline = ExportPipeline()
+
+
+@app.post("/exports")
+def create_export(request: ExportRequest):
+    return pipeline.build_job(request.model_dump())
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pytest FastBackend/tests/test_export_pipeline.py -v`
+Expected: PASS with the worker pipeline producing subtitle, optional audio, and ffmpeg job metadata.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add FastBackend/requirements.txt FastBackend/app FastBackend/tests/test_export_pipeline.py
+git commit -m "feat: scaffold pas media worker"
+```
+
 ## Self-Review
 
 Spec coverage check:
@@ -1150,6 +1296,7 @@ Spec coverage check:
 - Billing and logging: covered by Task 5.
 - Guided playback page: covered by Task 6.
 - Explicit out-of-scope handling: covered by Task 7.
+- Python media worker path for subtitles, TTS, and ffmpeg export: covered by Task 8.
 
 Placeholder scan:
 

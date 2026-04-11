@@ -1,6 +1,23 @@
 spring:
   application:
     name: SpringBackend
+  datasource:
+    url: jdbc:h2:file:./data/pas-mvp;MODE=PostgreSQL;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
 
 server:
   port: 8080
+
+pas:
+  ai:
+    base-url: https://api.openai.com
+    model: gpt-4o-mini
+    confidence-threshold: 0.8

@@ -2,15 +2,15 @@
 
 ## Overview
 
-Pas is an AI-assisted algorithm visualization product aimed at teachers. A user uploads Java algorithm code, the system automatically analyzes the code, recognizes the algorithm type, and generates a step-by-step visualization centered on data structure changes with code highlighting as a secondary aid. The long-term direction includes video export and later expansion into business-code visualization, but the MVP is limited to algorithm teaching.
+Pas is an AI-assisted algorithm visualization product aimed at teachers. A user uploads Java algorithm code, the system automatically analyzes the code, recognizes the algorithm type, and generates a step-by-step visualization centered on data structure changes with code highlighting as a secondary aid. The long-term direction includes video export, subtitles, voiceover, and later expansion into business-code visualization, but the MVP is limited to algorithm teaching.
 
-The current workspace only contains early scaffolds: a minimal Vue frontend, a minimal Spring Boot backend, and a FastAPI environment. There is no existing business logic yet, so the MVP should be designed from scratch on top of those foundations rather than constrained by existing implementation details.
+The current workspace already contains three useful starting points: a minimal Vue frontend, a minimal Spring Boot backend, and a FastAPI environment. The architecture should use them with clear separation of responsibility: Spring Boot as the business backend and system of record, Vue as the teaching player UI, and Python as a future media worker for export-oriented workloads.
 
 ## Product Goal
 
 The MVP solves a narrow teaching problem: teachers need a faster way to turn algorithm code into classroom-ready explanatory material. Instead of manually building slides or recording demonstrations, they can upload a Java implementation of a supported algorithm and receive a guided visualization that makes the algorithm process understandable.
 
-The experience should resemble a Ponder-style guided explanation: the primary focus is the changing state of the data structure, while code highlighting, step labels, and playback controls help anchor the explanation. The first output is an interactive animated lesson. Video export is a later milestone layered on top of the same result.
+The experience should resemble a Ponder-style guided explanation: the primary focus is the changing state of the data structure, while code highlighting, step labels, and playback controls help anchor the explanation. The first output is an interactive animated lesson. Video export is a later milestone layered on top of the same result, and that export path should later support subtitles and optional TTS voiceover.
 
 ## Target User
 
@@ -30,6 +30,7 @@ The MVP includes the following:
 - A guided playback page with animation, step controls, and code highlighting.
 - Credit-based billing support at the backend model level.
 - Basic task tracking, billing history, and system logs.
+- Export-oriented architecture that keeps room for a separate Python worker.
 
 The MVP explicitly does not include the following:
 
@@ -79,9 +80,23 @@ This preserves the all-automatic experience the product wants to project while a
 
 ## System Architecture
 
-The MVP should be structured into four main modules.
+The system should be structured as three cooperating layers with clear ownership.
 
-### 1. Code Input and Analysis
+### 1. Spring Boot Business Backend
+
+Spring Boot is the primary application backend and system of record. It owns:
+
+- users and login
+- credits and billing
+- generation tasks
+- system logs
+- algorithm recognition result management
+- deterministic visualization payload generation
+- coordination with downstream media workers when export is added
+
+Within Spring Boot, the core modules are:
+
+#### a. Code Input and Analysis
 
 This module accepts Java source code, normalizes it, parses relevant structure, and identifies whether the code likely implements one of the supported algorithms. It produces:
 
@@ -90,7 +105,7 @@ This module accepts Java source code, normalizes it, parses relevant structure, 
 - confidence score
 - parser metadata needed by downstream modules
 
-### 2. Explanation Generation
+#### b. Explanation Generation
 
 This module uses an LLM to generate teaching-facing content, including:
 
@@ -101,7 +116,7 @@ This module uses an LLM to generate teaching-facing content, including:
 
 This module must not be responsible for factual execution state.
 
-### 3. Deterministic Execution and State Extraction
+#### c. Deterministic Execution and State Extraction
 
 This is the correctness core of the system. For supported algorithms, it maps code into a controlled execution model and extracts the state sequence needed for animation. The output should include:
 
@@ -114,7 +129,54 @@ This is the correctness core of the system. For supported algorithms, it maps co
 
 This layer should stay deterministic wherever possible so the user sees stable, reproducible teaching output.
 
-### 4. Visualization Player
+#### d. Result and Task Management
+
+This module persists task state, stores generated payloads, writes billing records, and records system logs. It is also the future integration point for dispatching export jobs to the Python worker.
+
+### 2. Vue Visualization Frontend
+
+Vue is the teacher-facing application. It owns:
+
+- code submission UI
+- task progress and result display
+- guided playback page
+- code highlighting
+- step controls
+- export entry point
+
+The frontend should consume a unified visualization payload from Spring Boot and stay independent from algorithm-analysis internals.
+
+### 3. Python Media Worker
+
+Python should not own core business state. Its job is long-running media work that is awkward to keep inside the business backend. It is the right place for:
+
+- video generation worker jobs
+- TTS voice synthesis
+- subtitle generation and timing
+- ffmpeg composition
+- later AI video enhancements
+
+This worker is not required for the first MVP milestone, but the architecture should reserve a clean handoff from Spring Boot task records to Python export jobs.
+
+## Video Export Direction
+
+The product should evolve toward video output in stages.
+
+### Stage 1
+
+Interactive guided visualization only. No required video generation.
+
+### Stage 2
+
+Export the generated walkthrough into video with subtitles. This can start without voice and is the first place where the Python worker becomes useful.
+
+### Stage 3
+
+Add TTS voiceover, subtitle timing refinement, and richer composition through ffmpeg.
+
+### Stage 4
+
+Add more advanced AI media capabilities such as better narration pacing, branded templates, and stronger audio polish.
 
 This module renders the generated state sequence into a guided learning view. It consumes a unified result payload rather than raw source code analysis details. That separation is important because the same result payload can later feed video export.
 
@@ -126,9 +188,10 @@ The end-to-end flow should be:
 2. The backend creates a generation task.
 3. The analysis module identifies a likely algorithm and computes confidence.
 4. If confidence is sufficient, the explanation module and deterministic state extractor run.
-5. The backend stores the result payload and updates task status.
+5. Spring Boot stores the result payload and updates task status.
 6. The frontend loads the generated visualization and lets the teacher review the playback.
 7. Billing records are written based on task consumption.
+8. In later export milestones, Spring Boot dispatches a media job to the Python worker, which generates subtitles, optional voiceover, and final video artifacts.
 
 If analysis fails or confidence is too low, the task should move to a failed or unsupported state with a clear reason.
 
@@ -144,6 +207,8 @@ Error cases to support:
 - confidence below threshold
 - LLM generation failure
 - visualization payload generation failure
+- video export worker failure
+- subtitle or TTS generation failure
 
 For each case, the user should receive a short readable message, while the system log captures diagnostic detail.
 
@@ -156,6 +221,8 @@ Internally, credit cost can be influenced by:
 - LLM token usage
 - rendering complexity
 - runtime resource occupancy
+- subtitle generation cost
+- TTS usage cost
 - later video export cost
 
 Externally, the user-facing rule should remain simple. The MVP should expose a small number of understandable charge categories instead of raw infrastructure metrics.
@@ -287,4 +354,4 @@ The following decisions are now fixed for the MVP:
 
 ## Next Step
 
-The next step after spec approval is to create an implementation plan that breaks the MVP into concrete backend, frontend, parsing, state-engine, and testing milestones.
+The next step after spec approval is to create an implementation plan that breaks the MVP into concrete Spring Boot, Vue, parsing, deterministic state-engine, testing, and later Python worker milestones.

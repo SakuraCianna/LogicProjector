@@ -19,7 +19,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 35%),
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 30%),
     linear-gradient(180deg, #111827 0%, #020617 100%);
 }
 
@@ -30,65 +30,176 @@ select {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
 #app {
   min-height: 100vh;
 }
 
-.page-shell {
+.app-shell {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
   padding: 24px;
 }
 
-.hero-card {
-  width: min(100%, 720px);
-  padding: 40px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+.submission-panel,
+.task-summary-card,
+.visualization-stage,
+.explanation-panel,
+.code-highlight-panel,
+.playback-controls {
+  border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 24px;
-  background: rgba(15, 23, 42, 0.72);
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.76);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.3);
   backdrop-filter: blur(18px);
 }
 
-.eyebrow {
-  margin: 0 0 12px;
-  font-size: 0.85rem;
-  letter-spacing: 0.16em;
+.submission-panel {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.panel-header,
+.stage-header {
+  margin-bottom: 20px;
+}
+
+.panel-kicker,
+.stage-kicker {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #38bdf8;
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(2.5rem, 7vw, 4.5rem);
-  line-height: 1;
-}
-
-.summary {
-  margin: 16px 0 0;
-  max-width: 42rem;
-  font-size: 1.05rem;
+.panel-copy {
+  margin: 10px 0 0;
   color: #cbd5e1;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 24px;
+.code-input {
+  width: 100%;
+  min-height: 320px;
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  background: rgba(2, 6, 23, 0.9);
+  color: #e2e8f0;
+  resize: vertical;
 }
 
-.tag {
-  padding: 10px 14px;
+.primary-button,
+.playback-controls button {
+  border: none;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  background: rgba(14, 165, 233, 0.12);
-  color: #e0f2fe;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: white;
 }
 
-@media (max-width: 640px) {
-  .hero-card {
-    padding: 28px;
+.primary-button {
+  margin-top: 18px;
+  padding: 12px 18px;
+}
+
+.player-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 20px;
+}
+
+.task-summary-card,
+.explanation-panel,
+.code-highlight-panel,
+.visualization-stage,
+.playback-controls {
+  padding: 20px;
+}
+
+.task-summary-card {
+  grid-column: 1 / -1;
+}
+
+.summary-grid {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  color: #bae6fd;
+}
+
+.array-bars {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  min-height: 260px;
+  padding-top: 16px;
+}
+
+.array-bar {
+  flex: 1;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  min-width: 44px;
+  padding: 14px 8px;
+  border-radius: 18px 18px 10px 10px;
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.55), rgba(14, 116, 144, 0.88));
+  color: white;
+}
+
+.array-bar.active {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.8), rgba(249, 115, 22, 0.92));
+}
+
+.playback-controls {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.playback-controls button {
+  padding: 10px 16px;
+}
+
+.code-highlight-panel pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.code-line {
+  display: block;
+  padding: 4px 0;
+  color: #cbd5e1;
+}
+
+.code-line.highlighted {
+  background: rgba(56, 189, 248, 0.16);
+  color: #f8fafc;
+}
+
+.line-number {
+  display: inline-block;
+  width: 2rem;
+  margin-right: 0.75rem;
+  color: #64748b;
+}
+
+.error-banner {
+  width: min(100%, 980px);
+  margin: 20px auto 0;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+}
+
+@media (max-width: 900px) {
+  .player-layout {
+    grid-template-columns: 1fr;
   }
 }
