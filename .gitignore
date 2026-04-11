@@ -2,6 +2,7 @@ SpringBackend/target/
 FastBackend/venv/
 FastBackend/__pycache__/
 FastBackend/app/__pycache__/
+FastBackend/app/services/__pycache__/
 FastBackend/app/api/__pycache__/
 FastBackend/tests/__pycache__/
 VueFrontend/node_modules/
