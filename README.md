@@ -21,6 +21,13 @@ npm install
 npm run dev
 ```
 
+## Run Python export worker
+
+```bash
+cd FastBackend
+venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
 ## Demo account
 
 - email: `teacher@example.com`

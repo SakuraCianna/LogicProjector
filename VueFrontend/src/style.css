@@ -45,6 +45,7 @@ button {
 
 .submission-panel,
 .task-summary-card,
+.export-status-card,
 .visualization-stage,
 .explanation-panel,
 .code-highlight-panel,
@@ -112,6 +113,7 @@ button {
 }
 
 .task-summary-card,
+.export-status-card,
 .explanation-panel,
 .code-highlight-panel,
 .visualization-stage,
@@ -159,6 +161,15 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.export-status-card {
+  display: grid;
+  gap: 8px;
+}
+
+.export-error {
+  color: #fecaca;
 }
 
 .playback-controls button {

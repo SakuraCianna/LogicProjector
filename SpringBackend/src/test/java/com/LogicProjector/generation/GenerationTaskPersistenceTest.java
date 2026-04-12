@@ -19,7 +19,7 @@ class GenerationTaskPersistenceTest {
 
     @Test
     void shouldPersistTaskForTeacher() {
-        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 200, "ACTIVE"));
+        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 200, 0, "ACTIVE"));
 
         GenerationTask task = generationTaskRepository.save(
                 GenerationTask.pending(user, "public class Demo {}", "java")

@@ -21,3 +21,7 @@ pas:
     base-url: https://api.openai.com
     model: gpt-4o-mini
     confidence-threshold: 0.8
+  export:
+    worker-base-url: http://localhost:8000
+    freeze-estimate: 18
+    download-root: E:/CodeHome/LogicProjector/FastBackend/outputs

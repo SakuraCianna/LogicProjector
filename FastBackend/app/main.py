@@ -9,4 +9,4 @@ pipeline = ExportPipeline()
 
 @app.post("/exports", response_model=ExportResponse)
 def create_export(request: ExportRequest) -> ExportResponse:
-    return ExportResponse(**pipeline.build_job(request.model_dump()))
+    return ExportResponse(**pipeline.build_export(request.model_dump()))

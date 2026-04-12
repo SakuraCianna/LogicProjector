@@ -16,6 +16,6 @@ public class DemoUserSeeder implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         repository.findByEmail("teacher@example.com")
-                .orElseGet(() -> repository.save(new UserAccount(null, "teacher@example.com", 300, "ACTIVE")));
+                .orElseGet(() -> repository.save(new UserAccount(null, "teacher@example.com", 300, 0, "ACTIVE")));
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.LogicProjector.analysis.UnsupportedAlgorithmException;
 import com.LogicProjector.generation.api.GenerationTaskResponse;
 
 @WebMvcTest(GenerationTaskController.class)
@@ -45,7 +46,7 @@ class GenerationTaskControllerTest {
     @Test
     void shouldReturn422ForUnsupportedAlgorithm() throws Exception {
         given(generationTaskService.createTask(any()))
-                .willThrow(new com.LogicProjector.analysis.UnsupportedAlgorithmException(
+                .willThrow(new UnsupportedAlgorithmException(
                         "Unsupported algorithm or low confidence: 0.41"));
 
         mockMvc.perform(post("/api/generation-tasks")

@@ -2,15 +2,23 @@ from pydantic import BaseModel
 
 
 class ExportRequest(BaseModel):
-    task_id: int
+    exportTaskId: int
+    generationTaskId: int
+    algorithm: str
     summary: str
-    steps: list[dict]
-    subtitle_enabled: bool = True
-    tts_enabled: bool = False
+    visualizationPayload: dict
+    sourceCode: str
+    subtitleEnabled: bool = True
+    ttsEnabled: bool = True
 
 
 class ExportResponse(BaseModel):
-    task_id: int
-    subtitle_path: str
-    audio_path: str | None
-    ffmpeg_command: list[str]
+    status: str
+    progress: int
+    videoPath: str
+    subtitlePath: str | None
+    audioPath: str | None
+    tokenUsage: int
+    renderSeconds: int
+    concurrencyUnits: int
+    errorMessage: str | None

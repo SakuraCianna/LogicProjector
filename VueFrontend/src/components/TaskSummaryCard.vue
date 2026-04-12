@@ -7,6 +7,7 @@
       <span>Confidence: {{ task.confidenceScore.toFixed(2) }}</span>
       <span>Credits: {{ task.creditsCharged }}</span>
     </div>
+    <button data-export-button type="button" @click="$emit('export')">Export video</button>
   </section>
 </template>
 
@@ -15,5 +16,9 @@ import type { GenerationTaskResponse } from '../types/pas'
 
 defineProps<{
   task: GenerationTaskResponse
+}>()
+
+defineEmits<{
+  export: []
 }>()
 </script>

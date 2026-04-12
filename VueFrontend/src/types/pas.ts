@@ -22,3 +22,26 @@ export interface GenerationTaskResponse {
   errorMessage: string | null
   creditsCharged: number
 }
+
+export interface CreateExportTaskResponse {
+  id: number
+  generationTaskId: number
+  status: string
+  progress: number
+  creditsFrozen: number
+}
+
+export interface ExportTaskResponse {
+  id: number
+  generationTaskId: number
+  status: string
+  progress: number
+  videoUrl: string | null
+  subtitleUrl: string | null
+  audioUrl: string | null
+  errorMessage: string | null
+  creditsFrozen: number | null
+  creditsCharged: number | null
+  createdAt: string
+  updatedAt: string
+}

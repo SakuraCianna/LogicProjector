@@ -58,7 +58,7 @@ class GenerationTaskServiceFlowTest {
         systemLogEntryRepository.deleteAll();
         userAccountRepository.deleteAll();
 
-        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 120, "ACTIVE"));
+        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 120, 0, "ACTIVE"));
         userId = user.getId();
 
         given(algorithmRecognitionService.recognize(anyString()))

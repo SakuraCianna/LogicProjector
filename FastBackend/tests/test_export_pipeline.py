@@ -1,25 +1,35 @@
 from app.services.export_pipeline import ExportPipeline
 
 
-def test_builds_export_job_with_subtitles_and_optional_tts():
+def test_builds_completed_export_result(tmp_path) -> None:
     payload = {
-        "task_id": 42,
+        "exportTaskId": 42,
+        "generationTaskId": 7,
+        "algorithm": "QUICK_SORT",
         "summary": "Quick sort picks a pivot and partitions the array.",
-        "steps": [
-            {
-                "title": "Choose pivot",
-                "narration": "Pick the last value as pivot",
-                "arrayState": [5, 1, 4],
-            }
-        ],
-        "subtitle_enabled": True,
-        "tts_enabled": True,
+        "visualizationPayload": {
+            "algorithm": "QUICK_SORT",
+            "steps": [
+                {
+                    "title": "Choose pivot",
+                    "narration": "Pick the last value as pivot",
+                    "arrayState": [5, 1, 4],
+                    "activeIndices": [0, 2],
+                }
+            ],
+        },
+        "sourceCode": "public class QuickSort {}",
+        "subtitleEnabled": True,
+        "ttsEnabled": True,
     }
 
-    pipeline = ExportPipeline()
-    job = pipeline.build_job(payload)
+    pipeline = ExportPipeline(output_root=tmp_path)
+    result = pipeline.build_export(payload)
 
-    assert job["task_id"] == 42
-    assert job["subtitle_path"].endswith(".srt")
-    assert job["audio_path"].endswith(".mp3")
-    assert job["ffmpeg_command"][0] == "ffmpeg"
+    assert result["status"] == "COMPLETED"
+    assert result["videoPath"].endswith("42.mp4")
+    assert result["subtitlePath"].endswith("42.srt")
+    assert result["audioPath"].endswith("42.mp3")
+    assert result["tokenUsage"] > 0
+    assert result["renderSeconds"] >= 1
+    assert result["concurrencyUnits"] == 1
