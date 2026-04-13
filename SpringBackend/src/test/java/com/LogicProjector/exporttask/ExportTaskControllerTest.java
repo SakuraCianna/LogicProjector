@@ -51,4 +51,14 @@ class ExportTaskControllerTest {
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.videoUrl").value("/api/export-tasks/101/download"));
     }
+
+    @Test
+    void shouldReturn422ForInsufficientCredits() throws Exception {
+        given(exportTaskService.createExportTask(42L, 1L)).willThrow(new ExportTaskException("INSUFFICIENT_CREDITS"));
+
+        mockMvc.perform(post("/api/generation-tasks/42/exports")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value("INSUFFICIENT_CREDITS"));
+    }
 }

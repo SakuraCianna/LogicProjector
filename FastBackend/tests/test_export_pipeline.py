@@ -1,7 +1,37 @@
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
 from app.services.export_pipeline import ExportPipeline
 
 
-def test_builds_completed_export_result(tmp_path) -> None:
+pytestmark = pytest.mark.skipif(
+    shutil.which("ffmpeg") is None, reason="ffmpeg is required"
+)
+
+
+def _create_silent_mp3(audio_path: Path, _narration_text: str | None = None) -> None:
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=24000:cl=mono",
+            "-t",
+            "1",
+            str(audio_path),
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def test_builds_completed_export_result(tmp_path, monkeypatch) -> None:
     payload = {
         "exportTaskId": 42,
         "generationTaskId": 7,
@@ -24,6 +54,9 @@ def test_builds_completed_export_result(tmp_path) -> None:
     }
 
     pipeline = ExportPipeline(output_root=tmp_path)
+    monkeypatch.setattr(
+        pipeline.tts_service, "_save_audio", _create_silent_mp3, raising=False
+    )
     result = pipeline.build_export(payload)
 
     assert result["status"] == "COMPLETED"
@@ -33,3 +66,5 @@ def test_builds_completed_export_result(tmp_path) -> None:
     assert result["tokenUsage"] > 0
     assert result["renderSeconds"] >= 1
     assert result["concurrencyUnits"] == 1
+    assert Path(result["videoPath"]).exists()
+    assert Path(result["videoPath"]).stat().st_size > 0

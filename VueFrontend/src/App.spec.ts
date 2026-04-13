@@ -6,6 +6,7 @@ import * as api from './api/pasApi'
 
 vi.mock('./api/pasApi', () => ({
   createGenerationTask: vi.fn(),
+  getGenerationTask: vi.fn(),
   createExportTask: vi.fn(),
   getExportTask: vi.fn(),
 }))
@@ -39,7 +40,18 @@ describe('App', () => {
   })
 
   it('switches from editor to playback after a successful generation', async () => {
-    vi.mocked(api.createGenerationTask).mockResolvedValue(mockCompletedTask)
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue(mockCompletedTask)
 
     const wrapper = mount(App)
 
@@ -63,8 +75,50 @@ describe('App', () => {
     expect(wrapper.text()).toContain('Unsupported algorithm or low confidence')
   })
 
+  it('shows generation failure message when polling returns failed', async () => {
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'FAILED',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: 'Unsupported algorithm or low confidence',
+      creditsCharged: 0,
+    })
+
+    const wrapper = mount(App)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Unsupported algorithm or low confidence')
+  })
+
   it('creates and renders export progress after clicking export', async () => {
-    vi.mocked(api.createGenerationTask).mockResolvedValue(mockCompletedTask)
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue(mockCompletedTask)
     vi.mocked(api.createExportTask).mockResolvedValue({
       id: 101,
       generationTaskId: 1,
@@ -99,7 +153,18 @@ describe('App', () => {
   })
 
   it('shows export failure message when polling returns failed', async () => {
-    vi.mocked(api.createGenerationTask).mockResolvedValue(mockCompletedTask)
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue(mockCompletedTask)
     vi.mocked(api.createExportTask).mockResolvedValue({
       id: 101,
       generationTaskId: 1,

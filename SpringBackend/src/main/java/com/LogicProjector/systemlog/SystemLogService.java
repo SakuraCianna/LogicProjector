@@ -16,4 +16,8 @@ public class SystemLogService {
     public void info(Long userId, Long taskId, String module, String message) {
         repository.save(new SystemLogEntry(null, taskId, userId, "INFO", module, message, null, Instant.now()));
     }
+
+    public void error(Long userId, Long taskId, String module, String message, String details) {
+        repository.save(new SystemLogEntry(null, taskId, userId, "ERROR", module, message, details, Instant.now()));
+    }
 }

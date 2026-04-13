@@ -1,6 +1,5 @@
 package com.LogicProjector.exporttask;
 
-import java.io.IOException;
 import java.nio.file.Path;
 
 import org.springframework.core.io.FileSystemResource;
@@ -10,19 +9,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.LogicProjector.account.UserAccount;
 import com.LogicProjector.account.UserAccountRepository;
+import com.LogicProjector.billing.BillingService;
 import com.LogicProjector.exporttask.api.CreateExportTaskResponse;
 import com.LogicProjector.exporttask.api.ExportTaskResponse;
-import com.LogicProjector.exporttask.worker.MediaExportWorkerClient;
-import com.LogicProjector.exporttask.worker.MediaExportWorkerRequest;
-import com.LogicProjector.exporttask.worker.MediaExportWorkerResult;
+import com.LogicProjector.queue.TaskMessagePublisher;
 import com.LogicProjector.generation.GenerationTask;
 import com.LogicProjector.generation.GenerationTaskRepository;
 import com.LogicProjector.generation.GenerationTaskStatus;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ExportTaskService {
@@ -30,23 +28,23 @@ public class ExportTaskService {
     private final ExportTaskRepository exportTaskRepository;
     private final GenerationTaskRepository generationTaskRepository;
     private final UserAccountRepository userAccountRepository;
-    private final MediaExportWorkerClient workerClient;
-    private final ObjectMapper objectMapper;
+    private final TaskMessagePublisher taskMessagePublisher;
+    private final BillingService billingService;
     private final int freezeEstimate;
     private final String downloadRoot;
 
     public ExportTaskService(ExportTaskRepository exportTaskRepository,
             GenerationTaskRepository generationTaskRepository,
             UserAccountRepository userAccountRepository,
-            MediaExportWorkerClient workerClient,
-            ObjectMapper objectMapper,
+            TaskMessagePublisher taskMessagePublisher,
+            BillingService billingService,
             @Value("${pas.export.freeze-estimate}") int freezeEstimate,
             @Value("${pas.export.download-root}") String downloadRoot) {
         this.exportTaskRepository = exportTaskRepository;
         this.generationTaskRepository = generationTaskRepository;
         this.userAccountRepository = userAccountRepository;
-        this.workerClient = workerClient;
-        this.objectMapper = objectMapper;
+        this.taskMessagePublisher = taskMessagePublisher;
+        this.billingService = billingService;
         this.freezeEstimate = freezeEstimate;
         this.downloadRoot = downloadRoot;
     }
@@ -61,9 +59,22 @@ public class ExportTaskService {
 
         UserAccount user = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new ExportTaskException("USER_NOT_FOUND"));
-        user.freezeCredits(freezeEstimate);
+
+        try {
+            user.freezeCredits(freezeEstimate);
+        } catch (IllegalStateException exception) {
+            throw new ExportTaskException("INSUFFICIENT_CREDITS");
+        }
 
         ExportTask exportTask = exportTaskRepository.save(ExportTask.pending(generationTask, user, freezeEstimate));
+        billingService.recordExportFreeze(user, generationTask, exportTask);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                taskMessagePublisher.publishExportTask(exportTask.getId(), user.getId());
+            }
+        });
+
         return new CreateExportTaskResponse(
                 exportTask.getId(),
                 generationTask.getId(),
@@ -75,9 +86,6 @@ public class ExportTaskService {
     @Transactional
     public ExportTaskResponse getExportTask(Long exportTaskId, Long userId) {
         ExportTask exportTask = getOwnedExportTask(exportTaskId, userId);
-        if (exportTask.getStatus() == ExportTaskStatus.PENDING) {
-            processExportTask(exportTask);
-        }
         return ExportTaskResponse.from(exportTask);
     }
 
@@ -108,30 +116,5 @@ public class ExportTaskService {
             throw new ExportTaskException("EXPORT_NOT_OWNED_BY_USER");
         }
         return exportTask;
-    }
-
-    private void processExportTask(ExportTask exportTask) {
-        exportTask.markProcessing();
-        try {
-            JsonNode payloadJson = objectMapper.readTree(exportTask.getGenerationTask().getVisualizationPayloadJson());
-            MediaExportWorkerResult result = workerClient.createExport(new MediaExportWorkerRequest(
-                    exportTask.getId(),
-                    exportTask.getGenerationTask().getId(),
-                    exportTask.getGenerationTask().getDetectedAlgorithm(),
-                    exportTask.getGenerationTask().getSummary(),
-                    payloadJson,
-                    exportTask.getGenerationTask().getSourceCode(),
-                    true,
-                    true));
-            int actualCharge = result.tokenUsage() + result.renderSeconds() + result.concurrencyUnits();
-            exportTask.getUser().settleFrozenCredits(actualCharge, exportTask.getCreditsFrozen());
-            exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge);
-        } catch (IOException exception) {
-            exportTask.getUser().releaseFrozenCredits(exportTask.getCreditsFrozen());
-            exportTask.fail("INVALID_VISUALIZATION_PAYLOAD");
-        } catch (RuntimeException exception) {
-            exportTask.getUser().releaseFrozenCredits(exportTask.getCreditsFrozen());
-            exportTask.fail(exception.getMessage() == null ? "WORKER_UNAVAILABLE" : exception.getMessage());
-        }
     }
 }

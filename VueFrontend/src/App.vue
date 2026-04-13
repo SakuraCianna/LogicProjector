@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 
-import { createExportTask, createGenerationTask, getExportTask } from './api/pasApi'
+import { createExportTask, createGenerationTask, getExportTask, getGenerationTask } from './api/pasApi'
 import CodeHighlightPanel from './components/CodeHighlightPanel.vue'
 import CodeSubmissionPanel from './components/CodeSubmissionPanel.vue'
 import ExplanationPanel from './components/ExplanationPanel.vue'
@@ -39,6 +39,7 @@ const sourceCode = ref('')
 const activeIndex = ref(0)
 const errorMessage = ref('')
 let exportPollHandle: ReturnType<typeof setInterval> | null = null
+let generationPollHandle: ReturnType<typeof setInterval> | null = null
 
 const currentStep = computed(() => task.value?.visualizationPayload?.steps[activeIndex.value] ?? {
   title: 'No step',
@@ -57,8 +58,35 @@ async function handleSubmit(nextSourceCode: string) {
 
   try {
     task.value = await createGenerationTask(nextSourceCode)
+    if (task.value.status !== 'COMPLETED') {
+      await refreshGenerationTask(task.value.id)
+      if (task.value.status !== 'COMPLETED' && task.value.status !== 'FAILED') {
+        startGenerationPolling(task.value.id)
+      }
+    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Generation failed'
+  }
+}
+
+function startGenerationPolling(taskId: number) {
+  if (generationPollHandle) {
+    clearInterval(generationPollHandle)
+  }
+
+  generationPollHandle = setInterval(async () => {
+    await refreshGenerationTask(taskId)
+    if (task.value && (task.value.status === 'COMPLETED' || task.value.status === 'FAILED')) {
+      clearInterval(generationPollHandle!)
+      generationPollHandle = null
+    }
+  }, 3000)
+}
+
+async function refreshGenerationTask(taskId: number) {
+  task.value = await getGenerationTask(taskId)
+  if (task.value.status === 'FAILED' && task.value.errorMessage) {
+    errorMessage.value = task.value.errorMessage
   }
 }
 
@@ -100,6 +128,9 @@ async function refreshExportTask(exportTaskId: number) {
 onBeforeUnmount(() => {
   if (exportPollHandle) {
     clearInterval(exportPollHandle)
+  }
+  if (generationPollHandle) {
+    clearInterval(generationPollHandle)
   }
 })
 </script>

@@ -21,6 +21,17 @@ export async function createGenerationTask(sourceCode: string): Promise<Generati
   return response.json() as Promise<GenerationTaskResponse>
 }
 
+export async function getGenerationTask(taskId: number): Promise<GenerationTaskResponse> {
+  const response = await fetch(`http://localhost:8080/api/generation-tasks/${taskId}`)
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ message: 'Generation polling failed' }))
+    throw new Error(payload.message ?? 'Generation polling failed')
+  }
+
+  return response.json() as Promise<GenerationTaskResponse>
+}
+
 export async function createExportTask(taskId: number): Promise<CreateExportTaskResponse> {
   const response = await fetch(`http://localhost:8080/api/generation-tasks/${taskId}/exports`, {
     method: 'POST',

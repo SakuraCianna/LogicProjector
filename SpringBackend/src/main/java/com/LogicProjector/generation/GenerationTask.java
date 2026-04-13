@@ -1,5 +1,7 @@
 package com.LogicProjector.generation;
 
+import java.time.Instant;
+
 import com.LogicProjector.account.UserAccount;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -13,6 +15,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 @Entity
@@ -50,6 +54,18 @@ public class GenerationTask {
     @Column
     private String errorMessage;
 
+    @Column(nullable = false)
+    private Integer retryCount;
+
+    @Column
+    private Instant lastProcessedAt;
+
+    @Column(nullable = false)
+    private Instant createdAt;
+
+    @Column(nullable = false)
+    private Instant updatedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private GenerationTaskStatus status;
@@ -63,6 +79,7 @@ public class GenerationTask {
         task.sourceCode = sourceCode;
         task.language = language;
         task.status = GenerationTaskStatus.PENDING;
+        task.retryCount = 0;
         return task;
     }
 
@@ -106,6 +123,20 @@ public class GenerationTask {
         return errorMessage;
     }
 
+    public Integer getRetryCount() {
+        return retryCount;
+    }
+
+    public Instant getLastProcessedAt() {
+        return lastProcessedAt;
+    }
+
+    public void markAnalyzing() {
+        this.status = GenerationTaskStatus.ANALYZING;
+        this.retryCount = this.retryCount + 1;
+        this.lastProcessedAt = Instant.now();
+    }
+
     public void complete(String detectedAlgorithm, double confidenceScore, JsonNode visualizationPayload, String summary) {
         this.detectedAlgorithm = detectedAlgorithm;
         this.confidenceScore = confidenceScore;
@@ -113,10 +144,24 @@ public class GenerationTask {
         this.summary = summary;
         this.status = GenerationTaskStatus.COMPLETED;
         this.errorMessage = null;
+        this.lastProcessedAt = Instant.now();
     }
 
     public void fail(String errorMessage) {
         this.errorMessage = errorMessage;
         this.status = GenerationTaskStatus.FAILED;
+        this.lastProcessedAt = Instant.now();
+    }
+
+    @PrePersist
+    void onCreate() {
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = Instant.now();
     }
 }

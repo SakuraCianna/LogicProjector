@@ -60,6 +60,12 @@ public class ExportTask {
     private String errorMessage;
 
     @Column(nullable = false)
+    private Integer retryCount;
+
+    @Column
+    private Instant lastProcessedAt;
+
+    @Column(nullable = false)
     private Instant createdAt;
 
     @Column(nullable = false)
@@ -75,6 +81,7 @@ public class ExportTask {
         exportTask.status = ExportTaskStatus.PENDING;
         exportTask.progress = 0;
         exportTask.creditsFrozen = creditsFrozen;
+        exportTask.retryCount = 0;
         return exportTask;
     }
 
@@ -130,9 +137,19 @@ public class ExportTask {
         return updatedAt;
     }
 
+    public Integer getRetryCount() {
+        return retryCount;
+    }
+
+    public Instant getLastProcessedAt() {
+        return lastProcessedAt;
+    }
+
     public void markProcessing() {
         this.status = ExportTaskStatus.PROCESSING;
         this.progress = 15;
+        this.retryCount = this.retryCount + 1;
+        this.lastProcessedAt = Instant.now();
     }
 
     public void complete(String videoPath, String subtitlePath, String audioPath, int creditsCharged) {
@@ -143,12 +160,14 @@ public class ExportTask {
         this.audioPath = audioPath;
         this.creditsCharged = creditsCharged;
         this.errorMessage = null;
+        this.lastProcessedAt = Instant.now();
     }
 
     public void fail(String errorMessage) {
         this.status = ExportTaskStatus.FAILED;
         this.progress = 100;
         this.errorMessage = errorMessage;
+        this.lastProcessedAt = Instant.now();
     }
 
     @PrePersist
