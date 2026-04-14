@@ -23,8 +23,9 @@ server:
 
 pas:
   ai:
-    base-url: https://api.openai.com
-    model: gpt-4o-mini
+    base-url: https://api.deepseek.com
+    model: deepseek-chat
+    deepseek-api-key: sk-d35654c6c312433ca5b3abcd62796b76
     confidence-threshold: 0.8
   export:
     worker-base-url: http://localhost:8000

@@ -2,32 +2,41 @@ package com.LogicProjector.analysis;
 
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 @Component
 public class OpenAiCompatibleCodeAnalysisClient implements AiCodeAnalysisClient {
 
+    private static final String SYSTEM_PROMPT = """
+            You identify supported Java algorithms for a teaching product.
+            Return strict JSON with fields: algorithm, confidence, rationale.
+            Allowed algorithm values: BUBBLE_SORT, SELECTION_SORT, INSERTION_SORT, BINARY_SEARCH, QUICK_SORT, MERGE_SORT, UNKNOWN.
+            Confidence must be a number between 0 and 1.
+            Classify the intended algorithm even if the snippet is partial or not fully runnable, as long as the structure, naming, and key operations strongly indicate one supported algorithm.
+            Use UNKNOWN only when the intended supported algorithm is not reasonably inferable.
+            """;
+
+    private final AiChatClient aiChatClient;
+
+    public OpenAiCompatibleCodeAnalysisClient(AiChatClient aiChatClient) {
+        this.aiChatClient = aiChatClient;
+    }
+
     @Override
     public RecognitionResult analyze(String sourceCode) {
-        String normalized = sourceCode.toLowerCase();
+        JsonNode response = aiChatClient.createStructuredResponse(SYSTEM_PROMPT, sourceCode);
+        String algorithmName = response.path("algorithm").asText("UNKNOWN");
+        double confidence = response.path("confidence").asDouble(0.0);
+        String rationale = response.path("rationale").asText("No rationale provided");
 
-        if (normalized.contains("pivot") || normalized.contains("partition")) {
-            return new RecognitionResult(DetectedAlgorithm.QUICK_SORT, 0.91, "Pivot and partition detected");
-        }
-        if (normalized.contains("mid") && normalized.contains("left") && normalized.contains("right")) {
-            return new RecognitionResult(DetectedAlgorithm.BINARY_SEARCH, 0.87, "Binary search boundaries detected");
-        }
-        if (normalized.contains("arr[j] > arr[j + 1]")) {
-            return new RecognitionResult(DetectedAlgorithm.BUBBLE_SORT, 0.88, "Adjacent comparison swap loop detected");
-        }
-        if (normalized.contains("minindex") || normalized.contains("min_index")) {
-            return new RecognitionResult(DetectedAlgorithm.SELECTION_SORT, 0.86, "Minimum selection loop detected");
-        }
-        if (normalized.contains("key =") || normalized.contains("current =")) {
-            return new RecognitionResult(DetectedAlgorithm.INSERTION_SORT, 0.84, "Insertion step variable detected");
-        }
-        if (normalized.contains("merge(") && normalized.contains("mid")) {
-            return new RecognitionResult(DetectedAlgorithm.MERGE_SORT, 0.89, "Merge recursion detected");
-        }
+        return new RecognitionResult(toDetectedAlgorithm(algorithmName), confidence, rationale);
+    }
 
-        return new RecognitionResult(DetectedAlgorithm.UNKNOWN, 0.35, "No supported pattern found");
+    private DetectedAlgorithm toDetectedAlgorithm(String algorithmName) {
+        try {
+            return DetectedAlgorithm.valueOf(algorithmName.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            return DetectedAlgorithm.UNKNOWN;
+        }
     }
 }
