@@ -90,7 +90,7 @@ class GenerationTaskServiceFlowTest {
         given(aiChatClient.createStructuredResponse(anyString(), anyString()))
                 .willAnswer(invocation -> {
                     String userPrompt = invocation.getArgument(1, String.class);
-                    Matcher matcher = Pattern.compile("Steps: (\\d+)").matcher(userPrompt);
+                    Matcher matcher = Pattern.compile("Step count: (\\d+)").matcher(userPrompt);
                     int stepCount = matcher.find() ? Integer.parseInt(matcher.group(1)) : 0;
                     var response = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
                             .put("summary", "Quick sort picks a pivot and partitions the array.");
