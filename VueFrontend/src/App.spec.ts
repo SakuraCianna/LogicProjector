@@ -37,6 +37,7 @@ const mockCompletedTask = {
 describe('App', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.useRealTimers()
   })
 
   it('switches from editor to playback after a successful generation', async () => {
@@ -104,6 +105,39 @@ describe('App', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Unsupported algorithm or low confidence')
+  })
+
+  it('shows generation status while queued or processing', async () => {
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'ANALYZING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+
+    const wrapper = mount(App)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Generation status')
+    expect(wrapper.text()).toContain('ANALYZING')
+    expect(wrapper.find('.visualization-stage').exists()).toBe(false)
   })
 
   it('creates and renders export progress after clicking export', async () => {
@@ -194,5 +228,110 @@ describe('App', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('VIDEO_COMPOSE_FAILED')
+  })
+
+  it('auto advances steps while playing and stops at the end', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      ...mockCompletedTask,
+      visualizationPayload: {
+        algorithm: 'QUICK_SORT',
+        steps: [
+          {
+            title: 'Step 1',
+            narration: 'First',
+            arrayState: [5, 1, 4],
+            activeIndices: [0, 1],
+            highlightedLines: [3, 4],
+          },
+          {
+            title: 'Step 2',
+            narration: 'Second',
+            arrayState: [1, 5, 4],
+            activeIndices: [1, 2],
+            highlightedLines: [5],
+          },
+        ],
+      },
+    })
+
+    const wrapper = mount(App)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Step 1 / 2')
+    await wrapper.find('[data-play-toggle]').trigger('click')
+    await vi.advanceTimersByTimeAsync(1800)
+
+    expect(wrapper.text()).toContain('Step 2 / 2')
+    expect(wrapper.find('[data-play-toggle]').text()).toContain('Play')
+  })
+
+  it('allows scrubbing timeline and changing playback speed', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.createGenerationTask).mockResolvedValue({
+      id: 1,
+      status: 'PENDING',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      ...mockCompletedTask,
+      visualizationPayload: {
+        algorithm: 'QUICK_SORT',
+        steps: [
+          {
+            title: 'Step 1',
+            narration: 'First',
+            arrayState: [5, 1, 4],
+            activeIndices: [0, 1],
+            highlightedLines: [3, 4],
+          },
+          {
+            title: 'Step 2',
+            narration: 'Second',
+            arrayState: [1, 5, 4],
+            activeIndices: [1, 2],
+            highlightedLines: [5],
+          },
+          {
+            title: 'Step 3',
+            narration: 'Third',
+            arrayState: [1, 4, 5],
+            activeIndices: [2],
+            highlightedLines: [6],
+          },
+        ],
+      },
+    })
+
+    const wrapper = mount(App)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    await wrapper.find('[data-speed-select]').setValue('2')
+    await wrapper.find('[data-step-slider]').setValue('1')
+    expect(wrapper.text()).toContain('Step 2')
+
+    await wrapper.find('[data-play-toggle]').trigger('click')
+    await vi.advanceTimersByTimeAsync(800)
+
+    expect(wrapper.text()).toContain('Step 3 / 3')
   })
 })

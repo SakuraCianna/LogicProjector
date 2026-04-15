@@ -14,6 +14,7 @@ import com.LogicProjector.systemlog.SystemLogService;
 import com.LogicProjector.visualization.NarrationResult;
 import com.LogicProjector.visualization.NarrationService;
 import com.LogicProjector.visualization.VisualizationPayload;
+import com.LogicProjector.visualization.VisualizationStep;
 import com.LogicProjector.visualization.VisualizationStateExtractorFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,7 +63,8 @@ public class GenerationTaskProcessor {
         VisualizationPayload payload = visualizationStateExtractorFactory.forAlgorithm(recognition.algorithm())
                 .extract(recognition.algorithm().name(), sampleInput, task.getSourceCode());
         NarrationResult narration = narrationService.createNarration(recognition.algorithm(), payload, task.getSourceCode());
-        JsonNode payloadJson = objectMapper.valueToTree(payload);
+        VisualizationPayload narratedPayload = applyStepNarrations(payload, narration.stepNarrations());
+        JsonNode payloadJson = objectMapper.valueToTree(narratedPayload);
 
         task.complete(recognition.algorithm().name(), recognition.confidence(), payloadJson, narration.summary());
         billingService.chargeForCompletedGeneration(task.getUser(), task);
@@ -88,5 +90,23 @@ public class GenerationTaskProcessor {
             case BINARY_SEARCH -> List.of(1, 3, 5, 7, 9, 11);
             default -> List.of(3, 1, 2);
         };
+    }
+
+    private VisualizationPayload applyStepNarrations(VisualizationPayload payload, List<String> stepNarrations) {
+        if (stepNarrations == null || stepNarrations.size() != payload.steps().size()) {
+            return payload;
+        }
+
+        List<VisualizationStep> narratedSteps = new java.util.ArrayList<>();
+        for (int index = 0; index < payload.steps().size(); index++) {
+            VisualizationStep step = payload.steps().get(index);
+            narratedSteps.add(new VisualizationStep(
+                    step.title(),
+                    stepNarrations.get(index),
+                    step.arrayState(),
+                    step.activeIndices(),
+                    step.highlightedLines()));
+        }
+        return new VisualizationPayload(payload.algorithm(), List.copyOf(narratedSteps));
     }
 }

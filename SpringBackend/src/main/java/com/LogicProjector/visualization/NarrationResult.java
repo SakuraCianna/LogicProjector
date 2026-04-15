@@ -1,4 +1,6 @@
 package com.LogicProjector.visualization;
 
-public record NarrationResult(String summary) {
+import java.util.List;
+
+public record NarrationResult(String summary, List<String> stepNarrations) {
 }

@@ -1,5 +1,8 @@
 package com.LogicProjector.visualization;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.LogicProjector.analysis.AiChatClient;
@@ -10,9 +13,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class NarrationService {
 
     private static final String SYSTEM_PROMPT = """
-            You write short teaching summaries for Java algorithm walkthroughs.
-            Return strict JSON with one field: summary.
+            You write short teaching summaries and step narration for Java algorithm walkthroughs.
+            Return strict JSON with fields: summary, stepNarrations.
             Keep the summary to 1 sentence, concrete, and classroom-friendly.
+            stepNarrations must be an array of exactly one short sentence per step, matching the input step count and order.
+            Preserve the deterministic meaning of each step. Improve clarity, but do not invent state changes that are not present.
             Do not mention unsupported behavior or implementation uncertainty.
             """;
 
@@ -26,10 +31,11 @@ public class NarrationService {
         try {
             JsonNode response = aiChatClient.createStructuredResponse(
                     SYSTEM_PROMPT,
-                    "Algorithm: " + algorithm.name() + "\nSteps: " + payload.steps().size() + "\nSource code:\n" + sourceCode);
+                    buildNarrationPrompt(algorithm, payload, sourceCode));
             String summary = response.path("summary").asText("").trim();
+            List<String> stepNarrations = extractStepNarrations(response, payload.steps().size());
             if (!summary.isEmpty()) {
-                return new NarrationResult(summary);
+                return new NarrationResult(summary, stepNarrations);
             }
         } catch (RuntimeException ignored) {
             // Fall back to deterministic copy if narration generation fails.
@@ -44,6 +50,43 @@ public class NarrationService {
             case INSERTION_SORT -> "Insertion sort inserts each next value into the already sorted left side.";
             default -> "The algorithm is explained step by step through data structure changes.";
         };
-        return new NarrationResult(summary);
+        return new NarrationResult(summary, List.of());
+    }
+
+    private List<String> extractStepNarrations(JsonNode response, int stepCount) {
+        JsonNode stepNarrationsNode = response.path("stepNarrations");
+        if (!stepNarrationsNode.isArray() || stepNarrationsNode.size() != stepCount) {
+            return List.of();
+        }
+
+        List<String> stepNarrations = new ArrayList<>();
+        for (JsonNode stepNarrationNode : stepNarrationsNode) {
+            String narration = stepNarrationNode.asText("").trim();
+            if (narration.isEmpty()) {
+                return List.of();
+            }
+            stepNarrations.add(narration);
+        }
+        return List.copyOf(stepNarrations);
+    }
+
+    private String buildNarrationPrompt(DetectedAlgorithm algorithm, VisualizationPayload payload, String sourceCode) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Algorithm: ").append(algorithm.name()).append("\n");
+        prompt.append("Step count: ").append(payload.steps().size()).append("\n");
+        prompt.append("Steps:\n");
+
+        for (int index = 0; index < payload.steps().size(); index++) {
+            VisualizationStep step = payload.steps().get(index);
+            prompt.append(index + 1)
+                    .append(". title=")
+                    .append(step.title())
+                    .append("; currentNarration=")
+                    .append(step.narration())
+                    .append("\n");
+        }
+
+        prompt.append("Source code:\n").append(sourceCode);
+        return prompt.toString();
     }
 }

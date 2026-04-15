@@ -5,6 +5,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +16,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 
 import com.LogicProjector.account.UserAccount;
 import com.LogicProjector.account.UserAccountRepository;
+import com.LogicProjector.analysis.AiChatClient;
 import com.LogicProjector.analysis.AlgorithmRecognitionService;
 import com.LogicProjector.analysis.DetectedAlgorithm;
 import com.LogicProjector.analysis.RecognitionResult;
@@ -63,6 +67,9 @@ class GenerationTaskServiceFlowTest {
     private AlgorithmRecognitionService algorithmRecognitionService;
 
     @MockBean
+    private AiChatClient aiChatClient;
+
+    @MockBean
     private TaskMessagePublisher taskMessagePublisher;
 
     private Long userId;
@@ -80,6 +87,19 @@ class GenerationTaskServiceFlowTest {
 
         given(algorithmRecognitionService.recognize(anyString()))
                 .willReturn(new RecognitionResult(DetectedAlgorithm.QUICK_SORT, 0.93, "Pivot and partition detected"));
+        given(aiChatClient.createStructuredResponse(anyString(), anyString()))
+                .willAnswer(invocation -> {
+                    String userPrompt = invocation.getArgument(1, String.class);
+                    Matcher matcher = Pattern.compile("Steps: (\\d+)").matcher(userPrompt);
+                    int stepCount = matcher.find() ? Integer.parseInt(matcher.group(1)) : 0;
+                    var response = new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode()
+                            .put("summary", "Quick sort picks a pivot and partitions the array.");
+                    var stepNarrations = response.putArray("stepNarrations");
+                    for (int index = 0; index < stepCount; index++) {
+                        stepNarrations.add("AI narration step " + (index + 1));
+                    }
+                    return response;
+                });
     }
 
     @Test
@@ -109,6 +129,8 @@ class GenerationTaskServiceFlowTest {
         assertThat(response.detectedAlgorithm()).isEqualTo("QUICK_SORT");
         assertThat(response.summary()).contains("pivot");
         assertThat(response.visualizationPayload()).isNotNull();
+        assertThat(response.visualizationPayload().path("steps").get(0).path("narration").asText())
+                .isEqualTo("AI narration step 1");
         assertThat(billingRecordRepository.count()).isEqualTo(1);
         assertThat(systemLogEntryRepository.count()).isEqualTo(2);
         assertThat(userAccountRepository.findById(userId)).get().extracting(UserAccount::getCreditsBalance).isEqualTo(112);

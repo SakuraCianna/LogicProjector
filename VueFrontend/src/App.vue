@@ -2,7 +2,7 @@
   <main class="app-shell">
     <CodeSubmissionPanel v-if="!task" @submit="handleSubmit" />
 
-    <section v-else class="player-layout">
+    <section v-else-if="task.status === 'COMPLETED'" class="player-layout">
       <TaskSummaryCard :task="task" @export="handleExport" />
       <VisualizationStage :step="currentStep" />
       <ExplanationPanel :step="currentStep" />
@@ -11,9 +11,15 @@
       <PlaybackControls
         :step-count="task.visualizationPayload?.steps.length ?? 0"
         :active-index="activeIndex"
-        @change="activeIndex = $event"
+        :is-playing="isPlaying"
+        :playback-speed="playbackSpeed"
+        @change="setActiveIndex($event)"
+        @change-speed="changePlaybackSpeed"
+        @toggle-play="togglePlayback"
       />
     </section>
+
+    <GenerationStatusCard v-else :task="task" />
 
     <p v-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
   </main>
@@ -27,6 +33,7 @@ import CodeHighlightPanel from './components/CodeHighlightPanel.vue'
 import CodeSubmissionPanel from './components/CodeSubmissionPanel.vue'
 import ExplanationPanel from './components/ExplanationPanel.vue'
 import ExportStatusCard from './components/ExportStatusCard.vue'
+import GenerationStatusCard from './components/GenerationStatusCard.vue'
 import PlaybackControls from './components/PlaybackControls.vue'
 import TaskSummaryCard from './components/TaskSummaryCard.vue'
 import VisualizationStage from './components/VisualizationStage.vue'
@@ -37,9 +44,12 @@ const exportMeta = ref<CreateExportTaskResponse | null>(null)
 const exportTask = ref<ExportTaskResponse | null>(null)
 const sourceCode = ref('')
 const activeIndex = ref(0)
+const playbackSpeed = ref(1)
 const errorMessage = ref('')
+const isPlaying = ref(false)
 let exportPollHandle: ReturnType<typeof setInterval> | null = null
 let generationPollHandle: ReturnType<typeof setInterval> | null = null
+let playbackHandle: ReturnType<typeof setInterval> | null = null
 
 const currentStep = computed(() => task.value?.visualizationPayload?.steps[activeIndex.value] ?? {
   title: 'No step',
@@ -53,8 +63,10 @@ async function handleSubmit(nextSourceCode: string) {
   sourceCode.value = nextSourceCode
   errorMessage.value = ''
   activeIndex.value = 0
+  playbackSpeed.value = 1
   exportMeta.value = null
   exportTask.value = null
+  stopPlayback()
 
   try {
     task.value = await createGenerationTask(nextSourceCode)
@@ -107,6 +119,51 @@ async function handleExport() {
   }
 }
 
+function togglePlayback() {
+  if (!task.value?.visualizationPayload?.steps.length) {
+    return
+  }
+
+  if (isPlaying.value) {
+    stopPlayback()
+    return
+  }
+
+  isPlaying.value = true
+  playbackHandle = setInterval(() => {
+    const stepCount = task.value?.visualizationPayload?.steps.length ?? 0
+    if (activeIndex.value >= stepCount - 1) {
+      stopPlayback()
+      return
+    }
+    activeIndex.value += 1
+    if (activeIndex.value >= stepCount - 1) {
+      stopPlayback()
+    }
+  }, Math.round(1500 / playbackSpeed.value))
+}
+
+function stopPlayback() {
+  isPlaying.value = false
+  if (playbackHandle) {
+    clearInterval(playbackHandle)
+    playbackHandle = null
+  }
+}
+
+function setActiveIndex(nextIndex: number) {
+  activeIndex.value = nextIndex
+  stopPlayback()
+}
+
+function changePlaybackSpeed(speed: number) {
+  playbackSpeed.value = speed
+  if (isPlaying.value) {
+    stopPlayback()
+    togglePlayback()
+  }
+}
+
 function startExportPolling(exportTaskId: number) {
   if (exportPollHandle) {
     clearInterval(exportPollHandle)
@@ -132,5 +189,6 @@ onBeforeUnmount(() => {
   if (generationPollHandle) {
     clearInterval(generationPollHandle)
   }
+  stopPlayback()
 })
 </script>

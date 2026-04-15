@@ -46,6 +46,7 @@ button {
 .submission-panel,
 .task-summary-card,
 .export-status-card,
+.generation-status-card,
 .visualization-stage,
 .explanation-panel,
 .code-highlight-panel,
@@ -58,6 +59,12 @@ button {
 }
 
 .submission-panel {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.generation-status-card {
   width: min(100%, 980px);
   margin: 0 auto;
   padding: 32px;
@@ -114,6 +121,7 @@ button {
 
 .task-summary-card,
 .export-status-card,
+.generation-status-card,
 .explanation-panel,
 .code-highlight-panel,
 .visualization-stage,
@@ -169,6 +177,10 @@ button {
 }
 
 .export-error {
+  color: #fecaca;
+}
+
+.generation-error {
   color: #fecaca;
 }
 
