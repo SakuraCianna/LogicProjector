@@ -3,6 +3,7 @@
     <p class="panel-kicker">Generation status</p>
     <h2>{{ task.status }}</h2>
     <p>{{ statusCopy }}</p>
+    <slot name="actions" />
     <p v-if="task.errorMessage" class="generation-error">{{ task.errorMessage }}</p>
   </section>
 </template>

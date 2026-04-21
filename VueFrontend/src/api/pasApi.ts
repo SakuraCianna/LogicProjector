@@ -1,57 +1,125 @@
-import type { CreateExportTaskResponse, ExportTaskResponse, GenerationTaskResponse } from '../types/pas'
+import type { AuthResponse, CreateExportTaskResponse, ExportTaskResponse, GenerationTaskResponse, UserProfile } from '../types/pas'
 
-export async function createGenerationTask(sourceCode: string): Promise<GenerationTaskResponse> {
-  const response = await fetch('http://localhost:8080/api/generation-tasks', {
+const TOKEN_KEY = 'pas_token'
+
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+export class AuthExpiredError extends ApiError {
+  constructor(message = 'Login expired. Please sign in again.') {
+    super(message, 403)
+    this.name = 'AuthExpiredError'
+  }
+}
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setStoredToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearStoredToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+function authHeaders(): HeadersInit {
+  const token = getStoredToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const payload = await response.json().catch(() => null)
+  return typeof payload?.message === 'string' && payload.message.length > 0
+    ? payload.message
+    : fallback
+}
+
+async function requestJson<T>(url: string, init: RequestInit, fallback: string): Promise<T> {
+  const response = await fetch(url, init)
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, fallback)
+    if (response.status === 401 || response.status === 403) {
+      throw new AuthExpiredError(message)
+    }
+    throw new ApiError(message, response.status)
+  }
+
+  return response.json() as Promise<T>
+}
+
+export async function register(username: string, password: string): Promise<UserProfile> {
+  return requestJson<UserProfile>('http://localhost:8080/api/auth/register', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify({ username, password }),
+  }, 'Registration failed')
+}
+
+export async function login(username: string, password: string): Promise<AuthResponse> {
+  return requestJson<AuthResponse>('http://localhost:8080/api/auth/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username, password }),
+  }, 'Login failed')
+}
+
+export async function me(): Promise<UserProfile> {
+  return requestJson<UserProfile>('http://localhost:8080/api/auth/me', {
+    headers: {
+      ...authHeaders(),
+    },
+  }, 'Auth check failed')
+}
+
+export async function createGenerationTask(sourceCode: string): Promise<GenerationTaskResponse> {
+  return requestJson<GenerationTaskResponse>('http://localhost:8080/api/generation-tasks', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
     body: JSON.stringify({
-      userId: 1,
       sourceCode,
       language: 'java',
     }),
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({ message: 'Generation failed' }))
-    throw new Error(payload.message ?? 'Generation failed')
-  }
-
-  return response.json() as Promise<GenerationTaskResponse>
+  }, 'Generation failed')
 }
 
 export async function getGenerationTask(taskId: number): Promise<GenerationTaskResponse> {
-  const response = await fetch(`http://localhost:8080/api/generation-tasks/${taskId}`)
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({ message: 'Generation polling failed' }))
-    throw new Error(payload.message ?? 'Generation polling failed')
-  }
-
-  return response.json() as Promise<GenerationTaskResponse>
+  return requestJson<GenerationTaskResponse>(`http://localhost:8080/api/generation-tasks/${taskId}`, {
+    headers: {
+      ...authHeaders(),
+    },
+  }, 'Generation polling failed')
 }
 
 export async function createExportTask(taskId: number): Promise<CreateExportTaskResponse> {
-  const response = await fetch(`http://localhost:8080/api/generation-tasks/${taskId}/exports`, {
+  return requestJson<CreateExportTaskResponse>(`http://localhost:8080/api/generation-tasks/${taskId}/exports`, {
     method: 'POST',
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({ message: 'Export creation failed' }))
-    throw new Error(payload.message ?? 'Export creation failed')
-  }
-
-  return response.json() as Promise<CreateExportTaskResponse>
+    headers: {
+      ...authHeaders(),
+    },
+  }, 'Export creation failed')
 }
 
 export async function getExportTask(exportTaskId: number): Promise<ExportTaskResponse> {
-  const response = await fetch(`http://localhost:8080/api/export-tasks/${exportTaskId}`)
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({ message: 'Export polling failed' }))
-    throw new Error(payload.message ?? 'Export polling failed')
-  }
-
-  return response.json() as Promise<ExportTaskResponse>
+  return requestJson<ExportTaskResponse>(`http://localhost:8080/api/export-tasks/${exportTaskId}`, {
+    headers: {
+      ...authHeaders(),
+    },
+  }, 'Export polling failed')
 }

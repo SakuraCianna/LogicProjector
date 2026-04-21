@@ -6,6 +6,19 @@ export interface VisualizationStep {
   highlightedLines: number[]
 }
 
+export interface UserProfile {
+  id: number
+  username: string
+  creditsBalance: number
+  frozenCreditsBalance: number
+  status: string
+}
+
+export interface AuthResponse {
+  token: string
+  user: UserProfile
+}
+
 export interface VisualizationPayload {
   algorithm: string
   steps: VisualizationStep[]
