@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,10 +31,8 @@ import com.LogicProjector.generation.api.GenerationTaskResponse;
 import com.LogicProjector.queue.TaskMessagePublisher;
 import com.LogicProjector.systemlog.SystemLogEntryRepository;
 
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:pas-task-flow;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
-})
+@Disabled("Requires a dedicated MySQL test database; do not run against the local development database.")
+@SpringBootTest
 class GenerationTaskServiceFlowTest {
 
     private static final String QUICK_SORT_SOURCE = """

@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,11 +33,8 @@ import com.LogicProjector.queue.TaskMessagePublisher;
 import com.LogicProjector.systemlog.SystemLogEntryRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:pas-export-service;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "pas.export.freeze-estimate=18"
-})
+@Disabled("Requires a dedicated MySQL test database; do not run against the local development database.")
+@SpringBootTest(properties = "pas.export.freeze-estimate=18")
 class ExportTaskServiceTest {
 
     @Autowired
