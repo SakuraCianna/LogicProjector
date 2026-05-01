@@ -1,5 +1,6 @@
 SpringBackend/target/
 FastBackend/venv/
+FastBackend/outputs/
 FastBackend/__pycache__/
 FastBackend/app/__pycache__/
 FastBackend/app/services/__pycache__/
@@ -7,6 +8,9 @@ FastBackend/app/api/__pycache__/
 FastBackend/tests/__pycache__/
 VueFrontend/node_modules/
 VueFrontend/dist/
+.env
+.env.*
+!.env.example
 
 .idea/
 .vscode/

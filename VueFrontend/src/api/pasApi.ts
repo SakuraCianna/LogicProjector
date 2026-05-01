@@ -9,6 +9,11 @@ import type {
 } from '../types/pas'
 
 const TOKEN_KEY = 'pas_token'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+
+function apiUrl(path: string): string {
+  return `${API_BASE_URL}${path}`
+}
 
 export class ApiError extends Error {
   readonly status: number
@@ -66,7 +71,7 @@ async function requestJson<T>(url: string, init: RequestInit, fallback: string):
 }
 
 export async function register(username: string, password: string): Promise<UserProfile> {
-  return requestJson<UserProfile>('http://localhost:8080/api/auth/register', {
+  return requestJson<UserProfile>(apiUrl('/api/auth/register'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -76,7 +81,7 @@ export async function register(username: string, password: string): Promise<User
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
-  return requestJson<AuthResponse>('http://localhost:8080/api/auth/login', {
+  return requestJson<AuthResponse>(apiUrl('/api/auth/login'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -86,7 +91,7 @@ export async function login(username: string, password: string): Promise<AuthRes
 }
 
 export async function me(): Promise<UserProfile> {
-  return requestJson<UserProfile>('http://localhost:8080/api/auth/me', {
+  return requestJson<UserProfile>(apiUrl('/api/auth/me'), {
     headers: {
       ...authHeaders(),
     },
@@ -94,7 +99,7 @@ export async function me(): Promise<UserProfile> {
 }
 
 export async function createGenerationTask(sourceCode: string): Promise<GenerationTaskResponse> {
-  return requestJson<GenerationTaskResponse>('http://localhost:8080/api/generation-tasks', {
+  return requestJson<GenerationTaskResponse>(apiUrl('/api/generation-tasks'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -108,7 +113,7 @@ export async function createGenerationTask(sourceCode: string): Promise<Generati
 }
 
 export async function getGenerationTask(taskId: number): Promise<GenerationTaskResponse> {
-  return requestJson<GenerationTaskResponse>(`http://localhost:8080/api/generation-tasks/${taskId}`, {
+  return requestJson<GenerationTaskResponse>(apiUrl(`/api/generation-tasks/${taskId}`), {
     headers: {
       ...authHeaders(),
     },
@@ -116,7 +121,7 @@ export async function getGenerationTask(taskId: number): Promise<GenerationTaskR
 }
 
 export async function getRecentGenerationTasks(): Promise<GenerationTaskListItemResponse[]> {
-  return requestJson<GenerationTaskListItemResponse[]>('http://localhost:8080/api/generation-tasks/recent', {
+  return requestJson<GenerationTaskListItemResponse[]>(apiUrl('/api/generation-tasks/recent'), {
     headers: {
       ...authHeaders(),
     },
@@ -124,7 +129,7 @@ export async function getRecentGenerationTasks(): Promise<GenerationTaskListItem
 }
 
 export async function createExportTask(taskId: number): Promise<CreateExportTaskResponse> {
-  return requestJson<CreateExportTaskResponse>(`http://localhost:8080/api/generation-tasks/${taskId}/exports`, {
+  return requestJson<CreateExportTaskResponse>(apiUrl(`/api/generation-tasks/${taskId}/exports`), {
     method: 'POST',
     headers: {
       ...authHeaders(),
@@ -133,7 +138,7 @@ export async function createExportTask(taskId: number): Promise<CreateExportTask
 }
 
 export async function getExportTask(exportTaskId: number): Promise<ExportTaskResponse> {
-  return requestJson<ExportTaskResponse>(`http://localhost:8080/api/export-tasks/${exportTaskId}`, {
+  return requestJson<ExportTaskResponse>(apiUrl(`/api/export-tasks/${exportTaskId}`), {
     headers: {
       ...authHeaders(),
     },
@@ -141,7 +146,7 @@ export async function getExportTask(exportTaskId: number): Promise<ExportTaskRes
 }
 
 export async function getRecentExportTasks(): Promise<ExportTaskListItemResponse[]> {
-  return requestJson<ExportTaskListItemResponse[]>('http://localhost:8080/api/export-tasks/recent', {
+  return requestJson<ExportTaskListItemResponse[]>(apiUrl('/api/export-tasks/recent'), {
     headers: {
       ...authHeaders(),
     },

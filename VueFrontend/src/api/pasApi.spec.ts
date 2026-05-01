@@ -26,4 +26,16 @@ describe('pasApi', () => {
 
     await expect(login('teacher', 'bad-pass')).rejects.toThrow('Unsupported algorithm or low confidence')
   })
+
+  it('uses same-origin api paths by default', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'token', user: { id: 1, username: 'teacher', creditsBalance: 100 } }),
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await login('teacher', 'teacher-pass')
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/login', expect.any(Object))
+  })
 })

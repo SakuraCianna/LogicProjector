@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.LogicProjector.account.UserAccount;
+import com.LogicProjector.account.UserAccountRepository;
 import com.LogicProjector.analysis.AlgorithmRecognitionService;
 import com.LogicProjector.analysis.DetectedAlgorithm;
 import com.LogicProjector.analysis.RecognitionResult;
@@ -29,6 +31,7 @@ public class GenerationTaskProcessor {
     private final BillingService billingService;
     private final SystemLogService systemLogService;
     private final ObjectMapper objectMapper;
+    private final UserAccountRepository userAccountRepository;
 
     public GenerationTaskProcessor(GenerationTaskRepository generationTaskRepository,
             AlgorithmRecognitionService algorithmRecognitionService,
@@ -36,7 +39,8 @@ public class GenerationTaskProcessor {
             NarrationService narrationService,
             BillingService billingService,
             SystemLogService systemLogService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            UserAccountRepository userAccountRepository) {
         this.generationTaskRepository = generationTaskRepository;
         this.algorithmRecognitionService = algorithmRecognitionService;
         this.visualizationStateExtractorFactory = visualizationStateExtractorFactory;
@@ -44,6 +48,7 @@ public class GenerationTaskProcessor {
         this.billingService = billingService;
         this.systemLogService = systemLogService;
         this.objectMapper = objectMapper;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -68,7 +73,9 @@ public class GenerationTaskProcessor {
             JsonNode payloadJson = objectMapper.valueToTree(narratedPayload);
 
             task.complete(recognition.algorithm().name(), recognition.confidence(), payloadJson, narration.summary());
-            billingService.chargeForCompletedGeneration(task.getUser(), task);
+            UserAccount user = userAccountRepository.findByIdForUpdate(task.getUser().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found: " + task.getUser().getId()));
+            billingService.chargeForCompletedGeneration(user, task);
             systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing completed");
         } catch (com.LogicProjector.analysis.UnsupportedAlgorithmException exception) {
             task.fail(exception.getMessage());

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from app.services.frame_renderer import FrameRenderer
@@ -8,7 +9,7 @@ from app.services.video_compositor import VideoCompositor
 
 class ExportPipeline:
     def __init__(self, output_root: Path | None = None) -> None:
-        self.output_root = output_root or Path("outputs")
+        self.output_root = output_root or Path(os.environ.get("PAS_OUTPUT_ROOT", "outputs"))
         self.frame_renderer = FrameRenderer(self.output_root)
         self.subtitle_service = SubtitleService(self.output_root)
         self.tts_service = TtsService(self.output_root)

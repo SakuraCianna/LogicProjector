@@ -47,7 +47,7 @@ public class GenerationTaskService {
             throw new IllegalArgumentException("JAVA_ONLY");
         }
 
-        UserAccount user = userAccountRepository.findById(userId)
+        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         if (user.getCreditsBalance() < billingService.generationCharge()) {
             throw new IllegalArgumentException("INSUFFICIENT_CREDITS");
@@ -78,6 +78,7 @@ public class GenerationTaskService {
                 task.getSourceCode());
     }
 
+    @Transactional(readOnly = true)
     public GenerationTaskResponse getTask(Long taskId, Long userId) {
         GenerationTask task = generationTaskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
@@ -107,6 +108,7 @@ public class GenerationTaskService {
                 task.getSourceCode());
     }
 
+    @Transactional(readOnly = true)
     public List<GenerationTaskListItemResponse> getRecentTasks(Long userId) {
         return generationTaskRepository.findTop8ByUser_IdOrderByUpdatedAtDesc(userId)
                 .stream()

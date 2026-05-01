@@ -2,35 +2,36 @@ spring:
   application:
     name: SpringBackend
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
   datasource:
-    url: jdbc:h2:file:./data/pas-mvp;MODE=PostgreSQL;AUTO_SERVER=TRUE
-    username: sa
-    password:
+    url: "${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/logic_projector?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}"
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
   jpa:
     hibernate:
       ddl-auto: update
     open-in-view: false
-  h2:
-    console:
-      enabled: true
 
 server:
   port: 8080
 
 pas:
   ai:
-    base-url: https://api.deepseek.com
-    model: deepseek-chat
-    deepseek-api-key: sk-d35654c6c312433ca5b3abcd62796b76
-    confidence-threshold: 0.8
+    base-url: ${PAS_AI_BASE_URL:https://api.deepseek.com}
+    model: ${PAS_AI_MODEL:deepseek-chat}
+    deepseek-api-key: ${PAS_AI_DEEPSEEK_API_KEY:}
+    api-key-env: PAS_AI_DEEPSEEK_API_KEY
+    confidence-threshold: ${PAS_AI_CONFIDENCE_THRESHOLD:0.8}
+  auth:
+    jwt-secret: ${PAS_AUTH_JWT_SECRET:LogicProjectorJwtSecretLogicProjectorJwtSecret2026}
+    jwt-expiration-seconds: ${PAS_AUTH_JWT_EXPIRATION_SECONDS:86400}
   export:
-    worker-base-url: http://localhost:8000
-    freeze-estimate: 18
-    download-root: E:/CodeHome/LogicProjector/FastBackend/outputs
+    worker-base-url: ${PAS_EXPORT_WORKER_BASE_URL:http://localhost:8000}
+    freeze-estimate: ${PAS_EXPORT_FREEZE_ESTIMATE:18}
+    download-root: ${PAS_EXPORT_DOWNLOAD_ROOT:E:/CodeHome/LogicProjector/FastBackend/outputs}
   queue:
     exchange: pas.task.direct
     dead-letter-exchange: pas.dlx.direct

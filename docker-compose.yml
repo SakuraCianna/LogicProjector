@@ -1,0 +1,97 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: logicprojector-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-logic_projector}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: logicprojector-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  fast-backend:
+    build:
+      context: ./FastBackend
+    container_name: logicprojector-fast-backend
+    restart: unless-stopped
+    environment:
+      PAS_OUTPUT_ROOT: /app/outputs
+    ports:
+      - "8000:8000"
+    volumes:
+      - logicprojector_outputs:/app/outputs
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=5)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  spring-backend:
+    build:
+      context: ./SpringBackend
+    container_name: logicprojector-spring-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      fast-backend:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-logic_projector}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-123456}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-guest}
+      PAS_EXPORT_WORKER_BASE_URL: http://fast-backend:8000
+      PAS_EXPORT_DOWNLOAD_ROOT: /app/outputs
+      PAS_AI_DEEPSEEK_API_KEY: ${PAS_AI_DEEPSEEK_API_KEY:-}
+      PAS_AUTH_JWT_SECRET: ${PAS_AUTH_JWT_SECRET:-replace-with-at-least-32-bytes-secret}
+      PAS_AUTH_JWT_EXPIRATION_SECONDS: ${PAS_AUTH_JWT_EXPIRATION_SECONDS:-86400}
+    ports:
+      - "8080:8080"
+    volumes:
+      - logicprojector_outputs:/app/outputs:ro
+
+  vue-frontend:
+    build:
+      context: ./VueFrontend
+    container_name: logicprojector-vue-frontend
+    restart: unless-stopped
+    depends_on:
+      - spring-backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:
+  rabbitmq_data:
+  logicprojector_outputs:

@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.LogicProjector.account.UserAccount;
+import com.LogicProjector.account.UserAccountRepository;
 import com.LogicProjector.billing.BillingService;
 import com.LogicProjector.exporttask.worker.MediaExportWorkerClient;
 import com.LogicProjector.exporttask.worker.MediaExportWorkerRequest;
@@ -22,17 +24,20 @@ public class ExportTaskProcessor {
     private final ObjectMapper objectMapper;
     private final BillingService billingService;
     private final SystemLogService systemLogService;
+    private final UserAccountRepository userAccountRepository;
 
     public ExportTaskProcessor(ExportTaskRepository exportTaskRepository,
             MediaExportWorkerClient workerClient,
             ObjectMapper objectMapper,
             BillingService billingService,
-            SystemLogService systemLogService) {
+            SystemLogService systemLogService,
+            UserAccountRepository userAccountRepository) {
         this.exportTaskRepository = exportTaskRepository;
         this.workerClient = workerClient;
         this.objectMapper = objectMapper;
         this.billingService = billingService;
         this.systemLogService = systemLogService;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -65,7 +70,8 @@ public class ExportTaskProcessor {
             }
 
             int actualCharge = result.tokenUsage() + result.renderSeconds() + result.concurrencyUnits();
-            billingService.settleExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask, actualCharge);
+            UserAccount user = lockedUser(exportTask);
+            billingService.settleExportCredits(user, exportTask.getGenerationTask(), exportTask, actualCharge);
             exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge);
             systemLogService.info(exportTask.getUser().getId(), exportTask.getId(), "export", "Export processing completed");
         } catch (IllegalStateException exception) {
@@ -86,7 +92,7 @@ public class ExportTaskProcessor {
             return;
         }
 
-        billingService.releaseExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask);
+        billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
         exportTask.fail(errorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", "Export dispatch failed", errorMessage);
     }
@@ -100,14 +106,19 @@ public class ExportTaskProcessor {
             return;
         }
 
-        billingService.releaseExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask);
+        billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
         exportTask.fail(errorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", "Export moved to dead-letter queue", errorMessage);
     }
 
     private void failAndRefund(ExportTask exportTask, String errorMessage, String logMessage) {
-        billingService.releaseExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask);
+        billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
         exportTask.fail(errorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", logMessage, errorMessage);
+    }
+
+    private UserAccount lockedUser(ExportTask exportTask) {
+        return userAccountRepository.findByIdForUpdate(exportTask.getUser().getId())
+                .orElseThrow(() -> new ExportTaskException("USER_NOT_FOUND"));
     }
 }

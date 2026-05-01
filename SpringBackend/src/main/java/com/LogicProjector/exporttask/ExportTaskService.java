@@ -65,7 +65,7 @@ public class ExportTaskService {
             throw new ExportTaskException("GENERATION_NOT_READY");
         }
 
-        UserAccount user = userAccountRepository.findById(userId)
+        UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ExportTaskException("USER_NOT_FOUND"));
 
         try {
@@ -109,6 +109,7 @@ public class ExportTaskService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ResponseEntity<FileSystemResource> download(Long exportTaskId, Long userId) {
         ExportTask exportTask = getOwnedExportTask(exportTaskId, userId);
         if (exportTask.getStatus() != ExportTaskStatus.COMPLETED || exportTask.getVideoPath() == null) {
