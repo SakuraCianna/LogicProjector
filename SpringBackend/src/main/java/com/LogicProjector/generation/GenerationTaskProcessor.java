@@ -58,17 +58,35 @@ public class GenerationTaskProcessor {
         task.markAnalyzing();
         systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing started");
 
-        RecognitionResult recognition = algorithmRecognitionService.recognize(task.getSourceCode());
-        List<Integer> sampleInput = sampleInputFor(recognition.algorithm());
-        VisualizationPayload payload = visualizationStateExtractorFactory.forAlgorithm(recognition.algorithm())
-                .extract(recognition.algorithm().name(), sampleInput, task.getSourceCode());
-        NarrationResult narration = narrationService.createNarration(recognition.algorithm(), payload, task.getSourceCode());
-        VisualizationPayload narratedPayload = applyStepNarrations(payload, narration.stepNarrations());
-        JsonNode payloadJson = objectMapper.valueToTree(narratedPayload);
+        try {
+            RecognitionResult recognition = algorithmRecognitionService.recognize(task.getSourceCode());
+            List<Integer> sampleInput = sampleInputFor(recognition.algorithm());
+            VisualizationPayload payload = visualizationStateExtractorFactory.forAlgorithm(recognition.algorithm())
+                    .extract(recognition.algorithm().name(), sampleInput, task.getSourceCode());
+            NarrationResult narration = narrationService.createNarration(recognition.algorithm(), payload, task.getSourceCode());
+            VisualizationPayload narratedPayload = applyStepNarrations(payload, narration.stepNarrations());
+            JsonNode payloadJson = objectMapper.valueToTree(narratedPayload);
 
-        task.complete(recognition.algorithm().name(), recognition.confidence(), payloadJson, narration.summary());
-        billingService.chargeForCompletedGeneration(task.getUser(), task);
-        systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing completed");
+            task.complete(recognition.algorithm().name(), recognition.confidence(), payloadJson, narration.summary());
+            billingService.chargeForCompletedGeneration(task.getUser(), task);
+            systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing completed");
+        } catch (com.LogicProjector.analysis.UnsupportedAlgorithmException exception) {
+            task.fail(exception.getMessage());
+            systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation rejected as unsupported", exception.getMessage());
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markFailedFromDispatch(Long generationTaskId, String errorMessage) {
+        GenerationTask task = generationTaskRepository.findById(generationTaskId)
+                .orElseThrow(() -> new IllegalArgumentException("Generation task not found: " + generationTaskId));
+
+        if (task.getStatus() == GenerationTaskStatus.COMPLETED || task.getStatus() == GenerationTaskStatus.FAILED) {
+            return;
+        }
+
+        task.fail(errorMessage);
+        systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation dispatch failed", errorMessage);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

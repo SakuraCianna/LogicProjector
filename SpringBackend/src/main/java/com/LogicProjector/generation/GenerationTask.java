@@ -131,6 +131,14 @@ public class GenerationTask {
         return lastProcessedAt;
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     public void markAnalyzing() {
         this.status = GenerationTaskStatus.ANALYZING;
         this.retryCount = this.retryCount + 1;

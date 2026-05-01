@@ -16,7 +16,7 @@ public class GenerationTaskDeadLetterListener {
         this.generationTaskProcessor = generationTaskProcessor;
     }
 
-    @RabbitListener(queues = RabbitTaskQueues.GENERATION_DLQ, containerFactory = "generationListenerContainerFactory")
+    @RabbitListener(queues = RabbitTaskQueues.GENERATION_DLQ, containerFactory = "generationDeadLetterListenerContainerFactory")
     public void handle(TaskEnvelope envelope, Message message) {
         Object exceptionMessage = message.getMessageProperties().getHeaders().get("x-exception-message");
         String errorMessage = exceptionMessage == null ? "GENERATION_RETRY_EXHAUSTED" : exceptionMessage.toString();

@@ -15,8 +15,11 @@ public class UserAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @Column(name = "email", nullable = false, unique = true)
+    private String username;
+
+    @Column(nullable = false)
+    private String passwordHash;
 
     @Column(nullable = false)
     private Integer creditsBalance;
@@ -30,9 +33,10 @@ public class UserAccount {
     protected UserAccount() {
     }
 
-    public UserAccount(Long id, String email, Integer creditsBalance, Integer frozenCreditsBalance, String status) {
+    public UserAccount(Long id, String username, String passwordHash, Integer creditsBalance, Integer frozenCreditsBalance, String status) {
         this.id = id;
-        this.email = email;
+        this.username = username;
+        this.passwordHash = passwordHash;
         this.creditsBalance = creditsBalance;
         this.frozenCreditsBalance = frozenCreditsBalance;
         this.status = status;
@@ -42,8 +46,12 @@ public class UserAccount {
         return id;
     }
 
-    public String getEmail() {
-        return email;
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
     }
 
     public Integer getCreditsBalance() {
@@ -58,11 +66,20 @@ public class UserAccount {
         return status;
     }
 
+    public String getEmail() {
+        return username;
+    }
+
     public void debitCredits(int amount) {
+        requirePositiveAmount(amount);
+        if (creditsBalance < amount) {
+            throw new IllegalStateException("Insufficient credits to debit: " + amount);
+        }
         this.creditsBalance = this.creditsBalance - amount;
     }
 
     public void freezeCredits(int amount) {
+        requirePositiveAmount(amount);
         if (creditsBalance < amount) {
             throw new IllegalStateException("Insufficient credits to freeze: " + amount);
         }
@@ -71,6 +88,17 @@ public class UserAccount {
     }
 
     public void settleFrozenCredits(int actualCharge, int frozenAmount) {
+        if (actualCharge < 0) {
+            throw new IllegalArgumentException("Credit amount must be non-negative");
+        }
+        requirePositiveAmount(frozenAmount);
+        if (frozenCreditsBalance < frozenAmount) {
+            throw new IllegalStateException("Insufficient frozen credits to settle: " + frozenAmount);
+        }
+        if (actualCharge > frozenAmount && creditsBalance < actualCharge - frozenAmount) {
+            throw new IllegalStateException("Insufficient credits to settle: " + actualCharge);
+        }
+
         this.frozenCreditsBalance -= frozenAmount;
         if (frozenAmount > actualCharge) {
             this.creditsBalance += frozenAmount - actualCharge;
@@ -80,7 +108,17 @@ public class UserAccount {
     }
 
     public void releaseFrozenCredits(int amount) {
+        requirePositiveAmount(amount);
+        if (frozenCreditsBalance < amount) {
+            throw new IllegalStateException("Insufficient frozen credits to release: " + amount);
+        }
         this.frozenCreditsBalance -= amount;
         this.creditsBalance += amount;
+    }
+
+    private void requirePositiveAmount(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Credit amount must be positive");
+        }
     }
 }

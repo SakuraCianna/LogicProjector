@@ -1,9 +1,12 @@
 package com.LogicProjector.generation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doThrow;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,7 +85,7 @@ class GenerationTaskServiceFlowTest {
         generationTaskRepository.deleteAll();
         userAccountRepository.deleteAll();
 
-        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 120, 0, "ACTIVE"));
+        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher", "hash", 120, 0, "ACTIVE"));
         userId = user.getId();
 
         given(algorithmRecognitionService.recognize(anyString()))
@@ -105,7 +108,8 @@ class GenerationTaskServiceFlowTest {
     @Test
     void shouldCreatePendingTaskAndPublishMessage() {
         GenerationTaskResponse response = service.createTask(
-                new CreateGenerationTaskRequest(userId, QUICK_SORT_SOURCE, "java")
+                new CreateGenerationTaskRequest(QUICK_SORT_SOURCE, "java"),
+                userId
         );
 
         assertThat(response.status()).isEqualTo("PENDING");
@@ -123,16 +127,60 @@ class GenerationTaskServiceFlowTest {
 
         generationTaskProcessor.process(task.getId());
 
-        GenerationTaskResponse response = service.getTask(task.getId());
+        GenerationTaskResponse response = service.getTask(task.getId(), userId);
 
         assertThat(response.status()).isEqualTo("COMPLETED");
         assertThat(response.detectedAlgorithm()).isEqualTo("QUICK_SORT");
         assertThat(response.summary()).contains("pivot");
         assertThat(response.visualizationPayload()).isNotNull();
+        assertThat(response.creditsCharged()).isEqualTo(8);
         assertThat(response.visualizationPayload().path("steps").get(0).path("narration").asText())
                 .isEqualTo("AI narration step 1");
         assertThat(billingRecordRepository.count()).isEqualTo(1);
         assertThat(systemLogEntryRepository.count()).isEqualTo(2);
         assertThat(userAccountRepository.findById(userId)).get().extracting(UserAccount::getCreditsBalance).isEqualTo(112);
+    }
+
+    @Test
+    void shouldRejectTaskCreationWhenGenerationCreditsAreInsufficient() {
+        UserAccount lowCreditUser = userAccountRepository.save(new UserAccount(null, "low-credit", "hash", 3, 0, "ACTIVE"));
+
+        assertThatThrownBy(() -> service.createTask(new CreateGenerationTaskRequest(QUICK_SORT_SOURCE, "java"), lowCreditUser.getId()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("INSUFFICIENT_CREDITS");
+    }
+
+    @Test
+    void shouldRejectNonJavaLanguageBeforeQueueingTask() {
+        assertThatThrownBy(() -> service.createTask(new CreateGenerationTaskRequest(QUICK_SORT_SOURCE, "python"), userId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("JAVA_ONLY");
+    }
+
+    @Test
+    void shouldFailTaskIfDispatchToQueueFailsAfterCommit() {
+        doThrow(new RuntimeException("AMQP_DOWN")).when(taskMessagePublisher).publishGenerationTask(anyLong(), anyLong());
+
+        GenerationTaskResponse response = service.createTask(new CreateGenerationTaskRequest(QUICK_SORT_SOURCE, "java"), userId);
+
+        assertThat(service.getTask(response.id(), userId).status()).isEqualTo("FAILED");
+        assertThat(service.getTask(response.id(), userId).errorMessage()).isEqualTo("GENERATION_DISPATCH_FAILED");
+    }
+
+    @Test
+    void shouldFailUnsupportedAlgorithmWithoutChargingCredits() {
+        given(algorithmRecognitionService.recognize(anyString()))
+                .willThrow(new com.LogicProjector.analysis.UnsupportedAlgorithmException("Unsupported algorithm or low confidence: 0.41"));
+        GenerationTask task = generationTaskRepository.save(GenerationTask.pending(
+                userAccountRepository.findById(userId).orElseThrow(),
+                QUICK_SORT_SOURCE,
+                "java"));
+
+        generationTaskProcessor.process(task.getId());
+
+        GenerationTaskResponse response = service.getTask(task.getId(), userId);
+        assertThat(response.status()).isEqualTo("FAILED");
+        assertThat(response.errorMessage()).contains("Unsupported algorithm");
+        assertThat(billingRecordRepository.count()).isEqualTo(0);
     }
 }

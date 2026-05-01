@@ -1,4 +1,12 @@
-import type { AuthResponse, CreateExportTaskResponse, ExportTaskResponse, GenerationTaskResponse, UserProfile } from '../types/pas'
+import type {
+  AuthResponse,
+  CreateExportTaskResponse,
+  ExportTaskListItemResponse,
+  ExportTaskResponse,
+  GenerationTaskListItemResponse,
+  GenerationTaskResponse,
+  UserProfile,
+} from '../types/pas'
 
 const TOKEN_KEY = 'pas_token'
 
@@ -107,6 +115,14 @@ export async function getGenerationTask(taskId: number): Promise<GenerationTaskR
   }, 'Generation polling failed')
 }
 
+export async function getRecentGenerationTasks(): Promise<GenerationTaskListItemResponse[]> {
+  return requestJson<GenerationTaskListItemResponse[]>('http://localhost:8080/api/generation-tasks/recent', {
+    headers: {
+      ...authHeaders(),
+    },
+  }, 'Recent generation loading failed')
+}
+
 export async function createExportTask(taskId: number): Promise<CreateExportTaskResponse> {
   return requestJson<CreateExportTaskResponse>(`http://localhost:8080/api/generation-tasks/${taskId}/exports`, {
     method: 'POST',
@@ -122,4 +138,12 @@ export async function getExportTask(exportTaskId: number): Promise<ExportTaskRes
       ...authHeaders(),
     },
   }, 'Export polling failed')
+}
+
+export async function getRecentExportTasks(): Promise<ExportTaskListItemResponse[]> {
+  return requestJson<ExportTaskListItemResponse[]>('http://localhost:8080/api/export-tasks/recent', {
+    headers: {
+      ...authHeaders(),
+    },
+  }, 'Recent export loading failed')
 }

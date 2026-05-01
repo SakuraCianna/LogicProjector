@@ -1,8 +1,10 @@
 package com.LogicProjector.analysis;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -20,17 +22,30 @@ public class DeepSeekChatClient implements AiChatClient {
     private final String configuredApiKey;
     private final String apiKeyEnv;
     private final ObjectMapper objectMapper;
+    private final Duration timeout;
 
+    @Autowired
     public DeepSeekChatClient(@Value("${pas.ai.base-url}") String baseUrl,
             @Value("${pas.ai.model}") String model,
             @Value("${pas.ai.deepseek-api-key:}") String configuredApiKey,
             @Value("${pas.ai.api-key-env:DEEPSEEK_API_KEY}") String apiKeyEnv,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            @Value("${pas.ai.timeout-seconds:30}") long timeoutSeconds) {
+        this(baseUrl, model, configuredApiKey, apiKeyEnv, objectMapper, Duration.ofSeconds(timeoutSeconds));
+    }
+
+    DeepSeekChatClient(String baseUrl,
+            String model,
+            String configuredApiKey,
+            String apiKeyEnv,
+            ObjectMapper objectMapper,
+            Duration timeout) {
         this.webClient = WebClient.builder().baseUrl(baseUrl).build();
         this.model = model;
         this.configuredApiKey = configuredApiKey;
         this.apiKeyEnv = apiKeyEnv;
         this.objectMapper = objectMapper;
+        this.timeout = timeout;
     }
 
     @Override
@@ -58,7 +73,7 @@ public class DeepSeekChatClient implements AiChatClient {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
-                .block();
+                .block(timeout);
 
         if (response == null) {
             throw new IllegalStateException("DeepSeek returned an empty response");

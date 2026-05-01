@@ -10,6 +10,8 @@ vi.mock('./api/pasApi', () => ({
   getGenerationTask: vi.fn(),
   createExportTask: vi.fn(),
   getExportTask: vi.fn(),
+  getRecentGenerationTasks: vi.fn(),
+  getRecentExportTasks: vi.fn(),
   login: vi.fn(),
   me: vi.fn(),
   register: vi.fn(),
@@ -52,6 +54,8 @@ describe('App', () => {
     vi.resetAllMocks()
     vi.useRealTimers()
     vi.mocked(api.me).mockResolvedValue(mockUser)
+    vi.mocked(api.getRecentGenerationTasks).mockResolvedValue([])
+    vi.mocked(api.getRecentExportTasks).mockResolvedValue([])
   })
 
   async function mountAuthenticatedApp() {
@@ -64,8 +68,148 @@ describe('App', () => {
     const wrapper = await mountAuthenticatedApp()
 
     expect(api.me).toHaveBeenCalledTimes(1)
+    expect(api.getRecentGenerationTasks).toHaveBeenCalledTimes(1)
+    expect(api.getRecentExportTasks).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('teacher')
     expect(wrapper.text()).toContain('Credits: 300')
+  })
+
+  it('renders recent history in the sidebar after auth restore', async () => {
+    vi.mocked(api.getRecentGenerationTasks).mockResolvedValue([
+      {
+        id: 42,
+        status: 'COMPLETED',
+        detectedAlgorithm: 'QUICK_SORT',
+        summary: 'Quick sort picks a pivot.',
+        sourcePreview: 'public class QuickSort {',
+        createdAt: '2026-04-22T10:00:00Z',
+        updatedAt: '2026-04-22T10:01:00Z',
+      },
+    ])
+    vi.mocked(api.getRecentExportTasks).mockResolvedValue([
+      {
+        id: 101,
+        generationTaskId: 42,
+        status: 'COMPLETED',
+        detectedAlgorithm: 'QUICK_SORT',
+        createdAt: '2026-04-22T10:00:00Z',
+        updatedAt: '2026-04-22T10:02:00Z',
+      },
+    ])
+
+    const wrapper = await mountAuthenticatedApp()
+
+    expect(wrapper.text()).toContain('Recent generations')
+    expect(wrapper.text()).toContain('Recent exports')
+    expect(wrapper.text()).toContain('QUICK_SORT')
+    expect(wrapper.find('[data-generation-history-item="42"]').exists()).toBe(true)
+    expect(wrapper.find('[data-export-history-item="101"]').exists()).toBe(true)
+  })
+
+  it('shows a workspace overview when no task is selected', async () => {
+    const wrapper = await mountAuthenticatedApp()
+
+    expect(wrapper.text()).toContain('Teaching workspace')
+    expect(wrapper.text()).toContain('Pick a recent walkthrough or start a fresh one.')
+  })
+
+  it('loads a recent generation from the sidebar', async () => {
+    vi.mocked(api.getRecentGenerationTasks).mockResolvedValue([
+      {
+        id: 42,
+        status: 'COMPLETED',
+        detectedAlgorithm: 'QUICK_SORT',
+        summary: 'Quick sort picks a pivot.',
+        sourcePreview: 'public class QuickSort {',
+        createdAt: '2026-04-22T10:00:00Z',
+        updatedAt: '2026-04-22T10:01:00Z',
+      },
+    ])
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      ...mockCompletedTask,
+      sourceCode: 'public class QuickSort {}',
+    })
+
+    const wrapper = await mountAuthenticatedApp()
+    await wrapper.find('[data-generation-history-item="42"]').trigger('click')
+    await flushPromises()
+
+    expect(api.getGenerationTask).toHaveBeenCalledWith(42)
+    expect(wrapper.text()).toContain('QUICK_SORT')
+    expect(wrapper.text()).toContain('Current walkthrough')
+    expect(wrapper.find('.visualization-stage').exists()).toBe(true)
+  })
+
+  it('reopens a failed recent generation as a recoverable editor state', async () => {
+    vi.mocked(api.getRecentGenerationTasks).mockResolvedValue([
+      {
+        id: 51,
+        status: 'FAILED',
+        detectedAlgorithm: null,
+        summary: null,
+        sourcePreview: 'class BadAlgorithm {',
+        createdAt: '2026-04-22T10:00:00Z',
+        updatedAt: '2026-04-22T10:01:00Z',
+      },
+    ])
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      id: 51,
+      status: 'FAILED',
+      language: 'java',
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: 'Unsupported algorithm or low confidence',
+      creditsCharged: 0,
+      sourceCode: 'class BadAlgorithm {}',
+    })
+
+    const wrapper = await mountAuthenticatedApp()
+    await wrapper.find('[data-generation-history-item="51"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Unsupported algorithm or low confidence')
+  })
+
+  it('loads a recent export from the sidebar', async () => {
+    vi.mocked(api.getRecentExportTasks).mockResolvedValue([
+      {
+        id: 101,
+        generationTaskId: 42,
+        status: 'COMPLETED',
+        detectedAlgorithm: 'QUICK_SORT',
+        createdAt: '2026-04-22T10:00:00Z',
+        updatedAt: '2026-04-22T10:02:00Z',
+      },
+    ])
+    vi.mocked(api.getExportTask).mockResolvedValue({
+      id: 101,
+      generationTaskId: 42,
+      status: 'COMPLETED',
+      progress: 100,
+      videoUrl: '/api/export-tasks/101/download',
+      subtitleUrl: '/files/101.srt',
+      audioUrl: '/files/101.mp3',
+      errorMessage: null,
+      creditsFrozen: 18,
+      creditsCharged: 1231,
+      createdAt: '2026-04-22T10:00:00Z',
+      updatedAt: '2026-04-22T10:02:00Z',
+    })
+    vi.mocked(api.getGenerationTask).mockResolvedValue({
+      ...mockCompletedTask,
+      sourceCode: 'public class QuickSort {}',
+    })
+
+    const wrapper = await mountAuthenticatedApp()
+    await wrapper.find('[data-export-history-item="101"]').trigger('click')
+    await flushPromises()
+
+    expect(api.getExportTask).toHaveBeenCalledWith(101)
+    expect(api.getGenerationTask).toHaveBeenCalledWith(42)
+    expect(wrapper.find('[data-download-link]').exists()).toBe(true)
   })
 
   it('clears a stale token when auth restore fails with auth expiry', async () => {
@@ -147,7 +291,7 @@ describe('App', () => {
   it('logs out and clears the stored token', async () => {
     const wrapper = await mountAuthenticatedApp()
 
-    await wrapper.find('.user-bar button').trigger('click')
+    await wrapper.find('.sidebar-footer button').trigger('click')
 
     expect(api.clearStoredToken).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('Login')

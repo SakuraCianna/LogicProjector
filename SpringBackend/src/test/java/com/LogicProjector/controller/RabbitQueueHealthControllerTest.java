@@ -11,9 +11,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.LogicProjector.auth.JwtService;
+import com.LogicProjector.auth.SecurityConfig;
+
 @WebMvcTest(RabbitQueueHealthController.class)
+@Import(SecurityConfig.class)
 class RabbitQueueHealthControllerTest {
 
     @Autowired
@@ -21,6 +26,9 @@ class RabbitQueueHealthControllerTest {
 
     @MockBean
     private RabbitQueueHealthService rabbitQueueHealthService;
+
+    @MockBean
+    private JwtService jwtService;
 
     @Test
     void shouldReturnQueueDepthsForMainAndDeadLetterQueues() throws Exception {

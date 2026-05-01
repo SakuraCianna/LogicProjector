@@ -1,5 +1,6 @@
 package com.LogicProjector.exporttask;
 
+import java.util.List;
 import java.nio.file.Path;
 
 import org.springframework.core.io.FileSystemResource;
@@ -16,6 +17,7 @@ import com.LogicProjector.account.UserAccount;
 import com.LogicProjector.account.UserAccountRepository;
 import com.LogicProjector.billing.BillingService;
 import com.LogicProjector.exporttask.api.CreateExportTaskResponse;
+import com.LogicProjector.exporttask.api.ExportTaskListItemResponse;
 import com.LogicProjector.exporttask.api.ExportTaskResponse;
 import com.LogicProjector.queue.TaskMessagePublisher;
 import com.LogicProjector.generation.GenerationTask;
@@ -32,6 +34,7 @@ public class ExportTaskService {
     private final BillingService billingService;
     private final int freezeEstimate;
     private final String downloadRoot;
+    private final ExportTaskProcessor exportTaskProcessor;
 
     public ExportTaskService(ExportTaskRepository exportTaskRepository,
             GenerationTaskRepository generationTaskRepository,
@@ -39,7 +42,8 @@ public class ExportTaskService {
             TaskMessagePublisher taskMessagePublisher,
             BillingService billingService,
             @Value("${pas.export.freeze-estimate}") int freezeEstimate,
-            @Value("${pas.export.download-root}") String downloadRoot) {
+            @Value("${pas.export.download-root}") String downloadRoot,
+            ExportTaskProcessor exportTaskProcessor) {
         this.exportTaskRepository = exportTaskRepository;
         this.generationTaskRepository = generationTaskRepository;
         this.userAccountRepository = userAccountRepository;
@@ -47,12 +51,16 @@ public class ExportTaskService {
         this.billingService = billingService;
         this.freezeEstimate = freezeEstimate;
         this.downloadRoot = downloadRoot;
+        this.exportTaskProcessor = exportTaskProcessor;
     }
 
     @Transactional
     public CreateExportTaskResponse createExportTask(Long generationTaskId, Long userId) {
         GenerationTask generationTask = generationTaskRepository.findById(generationTaskId)
                 .orElseThrow(() -> new ExportTaskException("GENERATION_NOT_FOUND"));
+        if (!generationTask.getUser().getId().equals(userId)) {
+            throw new ExportTaskException("GENERATION_NOT_OWNED_BY_USER");
+        }
         if (generationTask.getStatus() != GenerationTaskStatus.COMPLETED) {
             throw new ExportTaskException("GENERATION_NOT_READY");
         }
@@ -71,7 +79,11 @@ public class ExportTaskService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                taskMessagePublisher.publishExportTask(exportTask.getId(), user.getId());
+                try {
+                    taskMessagePublisher.publishExportTask(exportTask.getId(), user.getId());
+                } catch (RuntimeException exception) {
+                    exportTaskProcessor.markFailedFromDispatch(exportTask.getId(), "EXPORT_DISPATCH_FAILED");
+                }
             }
         });
 
@@ -89,6 +101,14 @@ public class ExportTaskService {
         return ExportTaskResponse.from(exportTask);
     }
 
+    @Transactional(readOnly = true)
+    public List<ExportTaskListItemResponse> getRecentExportTasks(Long userId) {
+        return exportTaskRepository.findTop8ByUser_IdOrderByUpdatedAtDesc(userId)
+                .stream()
+                .map(ExportTaskListItemResponse::from)
+                .toList();
+    }
+
     public ResponseEntity<FileSystemResource> download(Long exportTaskId, Long userId) {
         ExportTask exportTask = getOwnedExportTask(exportTaskId, userId);
         if (exportTask.getStatus() != ExportTaskStatus.COMPLETED || exportTask.getVideoPath() == null) {
@@ -96,9 +116,6 @@ public class ExportTaskService {
         }
 
         FileSystemResource resource = new FileSystemResource(Path.of(downloadRoot).resolve(Path.of(exportTask.getVideoPath()).getFileName()));
-        if (!resource.exists()) {
-            resource = new FileSystemResource(exportTask.getVideoPath());
-        }
         if (!resource.exists()) {
             throw new ExportTaskException("EXPORT_FILE_MISSING");
         }

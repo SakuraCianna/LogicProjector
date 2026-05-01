@@ -34,6 +34,17 @@ export interface GenerationTaskResponse {
   visualizationPayload: VisualizationPayload | null
   errorMessage: string | null
   creditsCharged: number
+  sourceCode?: string | null
+}
+
+export interface GenerationTaskListItemResponse {
+  id: number
+  status: string
+  detectedAlgorithm: string | null
+  summary: string | null
+  sourcePreview: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateExportTaskResponse {
@@ -55,6 +66,15 @@ export interface ExportTaskResponse {
   errorMessage: string | null
   creditsFrozen: number | null
   creditsCharged: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExportTaskListItemResponse {
+  id: number
+  generationTaskId: number
+  status: string
+  detectedAlgorithm: string | null
   createdAt: string
   updatedAt: string
 }

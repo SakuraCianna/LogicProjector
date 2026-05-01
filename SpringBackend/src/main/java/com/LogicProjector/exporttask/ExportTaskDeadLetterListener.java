@@ -16,7 +16,7 @@ public class ExportTaskDeadLetterListener {
         this.exportTaskProcessor = exportTaskProcessor;
     }
 
-    @RabbitListener(queues = RabbitTaskQueues.EXPORT_DLQ, containerFactory = "exportListenerContainerFactory")
+    @RabbitListener(queues = RabbitTaskQueues.EXPORT_DLQ, containerFactory = "exportDeadLetterListenerContainerFactory")
     public void handle(TaskEnvelope envelope, Message message) {
         Object exceptionMessage = message.getMessageProperties().getHeaders().get("x-exception-message");
         String errorMessage = exceptionMessage == null ? "EXPORT_RETRY_EXHAUSTED" : exceptionMessage.toString();

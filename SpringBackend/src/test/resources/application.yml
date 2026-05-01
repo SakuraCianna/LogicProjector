@@ -11,6 +11,9 @@ pas:
     model: deepseek-chat
     api-key-env: DEEPSEEK_API_KEY
     confidence-threshold: 0.8
+  auth:
+    jwt-secret: LogicProjectorJwtSecretLogicProjectorJwtSecret2026
+    jwt-expiration-seconds: 86400
   export:
     worker-base-url: http://localhost:8000
     freeze-estimate: 18

@@ -5,6 +5,7 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.rabbit.config.RetryInterceptorBuilder;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -31,13 +32,21 @@ public class RabbitTaskConfig {
     }
 
     @Bean
-    Queue generationQueue() {
-        return new Queue(RabbitTaskQueues.GENERATION_QUEUE, true);
+    Queue generationQueue(@Value("${pas.queue.dead-letter-exchange}") String deadLetterExchangeName,
+            @Value("${pas.queue.generation-dlq-routing-key}") String deadLetterRoutingKey) {
+        return QueueBuilder.durable(RabbitTaskQueues.GENERATION_QUEUE)
+                .deadLetterExchange(deadLetterExchangeName)
+                .deadLetterRoutingKey(deadLetterRoutingKey)
+                .build();
     }
 
     @Bean
-    Queue exportQueue() {
-        return new Queue(RabbitTaskQueues.EXPORT_QUEUE, true);
+    Queue exportQueue(@Value("${pas.queue.dead-letter-exchange}") String deadLetterExchangeName,
+            @Value("${pas.queue.export-dlq-routing-key}") String deadLetterRoutingKey) {
+        return QueueBuilder.durable(RabbitTaskQueues.EXPORT_QUEUE)
+                .deadLetterExchange(deadLetterExchangeName)
+                .deadLetterRoutingKey(deadLetterRoutingKey)
+                .build();
     }
 
     @Bean
@@ -122,6 +131,32 @@ public class RabbitTaskConfig {
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(converter);
         factory.setAdviceChain(retryAdvice);
+        factory.setDefaultRequeueRejected(false);
+        factory.setAutoStartup(autoStartup);
+        return factory;
+    }
+
+    @Bean
+    SimpleRabbitListenerContainerFactory generationDeadLetterListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            Jackson2JsonMessageConverter converter,
+            @Value("${spring.rabbitmq.listener.simple.auto-startup:true}") boolean autoStartup) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(converter);
+        factory.setDefaultRequeueRejected(false);
+        factory.setAutoStartup(autoStartup);
+        return factory;
+    }
+
+    @Bean
+    SimpleRabbitListenerContainerFactory exportDeadLetterListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            Jackson2JsonMessageConverter converter,
+            @Value("${spring.rabbitmq.listener.simple.auto-startup:true}") boolean autoStartup) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(converter);
         factory.setDefaultRequeueRejected(false);
         factory.setAutoStartup(autoStartup);
         return factory;

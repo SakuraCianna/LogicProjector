@@ -7,10 +7,14 @@ import edge_tts
 
 class TtsService:
     def __init__(
-        self, output_root: Path, voice: str = "en-US-AvaMultilingualNeural"
+        self,
+        output_root: Path,
+        voice: str = "en-US-AvaMultilingualNeural",
+        timeout_seconds: int = 60,
     ) -> None:
         self.output_root = output_root
         self.voice = voice
+        self.timeout_seconds = timeout_seconds
 
     def build_audio_file(
         self, export_task_id: int, summary: str, steps: list[dict]
@@ -22,7 +26,7 @@ class TtsService:
         return audio_path
 
     def _save_audio(self, audio_path: Path, narration_text: str) -> None:
-        asyncio.run(self._synthesize(audio_path, narration_text))
+        asyncio.run(asyncio.wait_for(self._synthesize(audio_path, narration_text), timeout=self.timeout_seconds))
 
     async def _synthesize(self, audio_path: Path, narration_text: str) -> None:
         communicator = edge_tts.Communicate(narration_text, self.voice)

@@ -9,6 +9,8 @@ import com.LogicProjector.generation.GenerationTask;
 @Service
 public class BillingService {
 
+    private static final int GENERATION_CHARGE = 8;
+
     private final BillingRecordRepository billingRecordRepository;
 
     public BillingService(BillingRecordRepository billingRecordRepository) {
@@ -16,7 +18,7 @@ public class BillingService {
     }
 
     public int chargeForCompletedGeneration(UserAccount user, GenerationTask task) {
-        int charge = 8;
+        int charge = GENERATION_CHARGE;
         user.debitCredits(charge);
         billingRecordRepository.save(new BillingRecord(
                 null,
@@ -28,6 +30,10 @@ public class BillingService {
                 "Algorithm visualization generation"
         ));
         return charge;
+    }
+
+    public int generationCharge() {
+        return GENERATION_CHARGE;
     }
 
     public void recordExportFreeze(UserAccount user, GenerationTask task, ExportTask exportTask) {

@@ -60,18 +60,35 @@ public class ExportTaskProcessor {
                     true));
 
             if (!"COMPLETED".equals(result.status())) {
-                throw new ExportTaskException(result.errorMessage() == null ? "WORKER_UNAVAILABLE" : result.errorMessage());
+                failAndRefund(exportTask, result.errorMessage() == null ? "WORKER_UNAVAILABLE" : result.errorMessage(), "Export worker returned terminal failure");
+                return;
             }
 
             int actualCharge = result.tokenUsage() + result.renderSeconds() + result.concurrencyUnits();
             billingService.settleExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask, actualCharge);
             exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge);
             systemLogService.info(exportTask.getUser().getId(), exportTask.getId(), "export", "Export processing completed");
+        } catch (IllegalStateException exception) {
+            failAndRefund(exportTask, "INSUFFICIENT_CREDITS", "Export settlement failed after render");
         } catch (IOException exception) {
-            throw new ExportTaskException("INVALID_VISUALIZATION_PAYLOAD");
+            failAndRefund(exportTask, "INVALID_VISUALIZATION_PAYLOAD", "Export failed due to invalid visualization payload");
         } catch (RuntimeException exception) {
             throw exception;
         }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markFailedFromDispatch(Long exportTaskId, String errorMessage) {
+        ExportTask exportTask = exportTaskRepository.findById(exportTaskId)
+                .orElseThrow(() -> new ExportTaskException("EXPORT_NOT_FOUND"));
+
+        if (exportTask.getStatus() == ExportTaskStatus.COMPLETED || exportTask.getStatus() == ExportTaskStatus.FAILED) {
+            return;
+        }
+
+        billingService.releaseExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask);
+        exportTask.fail(errorMessage);
+        systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", "Export dispatch failed", errorMessage);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -86,5 +103,11 @@ public class ExportTaskProcessor {
         billingService.releaseExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask);
         exportTask.fail(errorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", "Export moved to dead-letter queue", errorMessage);
+    }
+
+    private void failAndRefund(ExportTask exportTask, String errorMessage, String logMessage) {
+        billingService.releaseExportCredits(exportTask.getUser(), exportTask.getGenerationTask(), exportTask);
+        exportTask.fail(errorMessage);
+        systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", logMessage, errorMessage);
     }
 }

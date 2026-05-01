@@ -1,56 +1,48 @@
 # AGENTS.md
 
-## Repo Shape
-- This repo is split into 3 independent apps. There is no root task runner.
-- `SpringBackend/`: Spring Boot 3.5 + Java 21 business backend. Owns users, generation tasks, export tasks, billing, logs, algorithm recognition, and visualization payloads.
-- `VueFrontend/`: Vue 3 + Vite SPA. Owns code submission, walkthrough playback, export button, polling UI, and download link rendering.
-- `FastBackend/`: FastAPI media worker. Owns frame rendering, subtitle generation, TTS, and ffmpeg video composition.
-
-## Current Product State
-- Pas is no longer just a scaffold. The codebase now supports:
-  - Java algorithm walkthrough generation in Spring Boot
-  - Vue playback UI with code highlight and step controls
-  - async-style export task flow in Spring Boot and Vue
-  - Python worker media generation for frames, `.srt`, `.mp3`, and `.mp4`
-- Export flow is `Vue -> SpringBoot -> FastBackend`; the frontend must not call Python directly.
+## Boundaries
+- This repo has 3 standalone apps and no root task runner: `SpringBackend/`, `VueFrontend/`, `FastBackend/`.
+- Real flow is `VueFrontend -> SpringBackend -> FastBackend`; the Vue app should only call Spring.
+- Trace cross-app behavior from these files first:
+  - Spring HTTP: `SpringBackend/src/main/java/com/LogicProjector/generation/GenerationTaskController.java`, `SpringBackend/src/main/java/com/LogicProjector/exporttask/ExportTaskController.java`
+  - Spring async workers: `SpringBackend/src/main/java/com/LogicProjector/generation/GenerationTaskListener.java`, `SpringBackend/src/main/java/com/LogicProjector/exporttask/ExportTaskListener.java`
+  - Spring -> worker bridge: `SpringBackend/src/main/java/com/LogicProjector/exporttask/worker/HttpMediaExportWorkerClient.java`
+  - Vue workspace shell and history behavior: `VueFrontend/src/App.vue`
+  - Vue API wiring and token storage: `VueFrontend/src/api/pasApi.ts`
+  - Fast worker HTTP and pipeline: `FastBackend/app/main.py`, `FastBackend/app/services/export_pipeline.py`
 
 ## Commands
-- Backend dev server: `cd SpringBackend && mvn spring-boot:run`
-- Backend tests: `cd SpringBackend && mvn test`
-- Single backend test: `cd SpringBackend && mvn -q -Dtest=ExportTaskServiceTest test`
-- Frontend dev server: `cd VueFrontend && npm install && npm run dev`
-- Frontend tests: `cd VueFrontend && npm run test -- --run`
-- Single frontend spec: `cd VueFrontend && npm run test -- --run src/App.spec.ts`
-- Frontend build: `cd VueFrontend && npm run build`
-- Python worker dev server: `cd FastBackend && venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000`
-- Python worker tests: `cd FastBackend && venv\Scripts\python.exe -m pytest tests/test_frame_renderer.py tests/test_video_compositor.py tests/test_export_pipeline.py -v`
+- Spring dev: `mvn spring-boot:run` from `SpringBackend`
+- Spring tests: `mvn test` from `SpringBackend`
+- Single Spring test: `mvn -q -Dtest=ExportTaskServiceTest test` from `SpringBackend`
+- Focused Spring business-flow check: `mvn -q "-Dtest=GenerationTaskControllerTest,ExportTaskControllerTest,ExportTaskServiceTest" test` from `SpringBackend`
+- Vue dev: `npm run dev` from `VueFrontend`
+- Vue tests: `npm run test -- --run` from `VueFrontend`
+- Single Vue spec: `npm run test -- --run src/App.spec.ts` from `VueFrontend`
+- Vue build: `npm run build` from `VueFrontend` (`vue-tsc -b` is part of this; there is no separate typecheck script)
+- Fast worker dev: `D:\anaconda3\envs\logicprojector-fast\python.exe -m uvicorn app.main:app --reload --port 8000` from `FastBackend`
+- Fast worker tests: `D:\anaconda3\envs\logicprojector-fast\python.exe -m pytest tests/test_frame_renderer.py tests/test_video_compositor.py tests/test_export_pipeline.py -v` from `FastBackend`
+- Single Fast worker test: `D:\anaconda3\envs\logicprojector-fast\python.exe -m pytest tests/test_export_pipeline.py -v` from `FastBackend`
+- Always use the dedicated `logicprojector-fast` conda env for `FastBackend`; do not install project dependencies into Anaconda `base`, and do not assume global `python` or `pytest`.
 
-## Workflow Conventions
-- User preference: work directly on `main` unless explicitly told otherwise.
-- Use `venv\Scripts\python.exe`, not bare `python` or `pytest`, for `FastBackend` commands.
-- Verify all 3 apps when changing cross-cutting export flow: Spring tests, Vue tests/build, and FastBackend pytest.
+## Runtime Truths
+- `SpringBackend/src/main/resources/application.yml` is the source of truth for local wiring. RabbitMQ, H2, JWT, worker URL, download root, and AI settings are configured there, not via repo-level `.env` files.
+- `application.yml` currently contains a real-looking DeepSeek key and the local JWT secret in plain text. Treat it as sensitive configuration, not sample data.
+- Spring protects everything except `/api/auth/**`, `/health/**`, and `/h2-console/**`; Vue stores the JWT in localStorage key `pas_token`.
+- `README.md`, the listed demo account, and `scripts/local-smoke-test.ps1` still contain pre-auth/demo-flow assumptions in places (for example posting `userId`, calling protected routes without a Bearer token, or implying a seeded `teacher@example.com` account). Trust controllers and tests over those docs/scripts.
+- Runtime generation/export depends on RabbitMQ at `localhost:5672`. Spring publishes to AMQP and `@RabbitListener`s do the work; polling status does not trigger processing.
+- Spring uses a file-backed H2 DB at `SpringBackend/data/`, so local runs keep state and may create untracked files there.
+- Vue hardcodes the backend base URL to `http://localhost:8080` in `VueFrontend/src/api/pasApi.ts`; there is no env-driven API base config.
+- The authenticated Vue home screen is now a sidebar workspace, not a simple single-form page. Recent activity is loaded from Spring via `/api/generation-tasks/recent` and `/api/export-tasks/recent`, and reopening a history item relies on `GenerationTaskResponse.sourceCode` being present.
+- Spring download resolves files from `pas.export.download-root` first, then falls back to the raw worker-returned path.
+- Export billing in Spring settles against worker-reported `tokenUsage + renderSeconds + concurrencyUnits`.
+- Fast export needs `ffmpeg` on `PATH`. The ffmpeg-backed pytest modules skip when it is missing, and TTS tests monkeypatch `edge-tts`, so green tests do not prove live media generation end-to-end.
 
-## Non-Obvious Runtime Facts
-- There is no real auth yet. Frontend and export controller paths assume the demo user flow (`userId = 1` / `teacher@example.com`). Do not design changes assuming finished auth exists.
-- Spring uses a file-backed H2 database: `SpringBackend/src/main/resources/application.yml` points to `jdbc:h2:file:./data/pas-mvp`. Local runs can keep state across restarts.
-- Spring export processing is not on a real queue yet. `ExportTaskService.getExportTask(...)` triggers `processExportTask(...)` the first time a pending export is polled.
-- Export pricing is currently settled in Spring from worker-reported usage as `tokenUsage + renderSeconds + concurrencyUnits`.
-- FastBackend runtime export depends on `ffmpeg` being available on `PATH`.
-- `TtsService` uses real `edge-tts` at runtime, but worker tests monkeypatch audio generation for determinism. Passing tests do not prove live network TTS works.
-
-## File Pointers
-- Export backend entrypoint: `SpringBackend/src/main/java/com/LogicProjector/exporttask/ExportTaskService.java`
-- Export HTTP API: `SpringBackend/src/main/java/com/LogicProjector/exporttask/ExportTaskController.java`
-- Frontend export wiring: `VueFrontend/src/App.vue`
-- Worker HTTP entrypoint: `FastBackend/app/main.py`
-- Worker pipeline: `FastBackend/app/services/export_pipeline.py`
+## Verification
+- For cross-app export changes, verify all 3 apps: Spring `mvn test`, Vue `npm run test -- --run` and `npm run build`, Fast worker pytest command above.
+- For auth/history/sidebar or ownership bugfixes, the highest-signal checks are Spring `GenerationTaskControllerTest`, `ExportTaskControllerTest`, `ExportTaskServiceTest` and Vue `src/App.spec.ts`.
+- Queue health endpoint: `GET http://localhost:8080/health/queues`.
 
 ## Gotchas
-- Generated media goes under `FastBackend/outputs/` by default from the worker path logic, but that directory is not currently ignored in `.gitignore`. Do not commit generated media unless the user asks.
-- Spring download logic resolves files from `pas.export.download-root` first, then falls back to the raw worker-returned path.
-- If you change constructor signatures on `UserAccount`, update the Spring tests; several tests instantiate it directly.
-
-## Relevant Design Docs
-- Walkthrough MVP spec: `docs/superpowers/specs/2026-04-11-pas-mvp-design.md`
-- Video export v1 spec: `docs/superpowers/specs/2026-04-11-pas-video-export-v1-design.md`
-- Video export v1 plan: `docs/superpowers/plans/2026-04-11-pas-video-export-v1-implementation.md`
+- `FastBackend/outputs/` is not ignored by `.gitignore`; do not commit generated media.
+- If you change `UserAccount` constructor or fields, update Spring tests that instantiate `new UserAccount(...)` directly.

@@ -11,6 +11,7 @@ public record GenerationTaskResponse(
         double confidenceScore,
         JsonNode visualizationPayload,
         String errorMessage,
-        int creditsCharged
+        int creditsCharged,
+        String sourceCode
 ) {
 }

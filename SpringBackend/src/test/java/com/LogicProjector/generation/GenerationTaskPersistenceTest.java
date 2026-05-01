@@ -19,7 +19,7 @@ class GenerationTaskPersistenceTest {
 
     @Test
     void shouldPersistTaskForTeacher() {
-        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 200, 0, "ACTIVE"));
+        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher", "hash", 200, 0, "ACTIVE"));
 
         GenerationTask task = generationTaskRepository.save(
                 GenerationTask.pending(user, "public class Demo {}", "java")
@@ -27,6 +27,6 @@ class GenerationTaskPersistenceTest {
 
         assertThat(task.getId()).isNotNull();
         assertThat(task.getStatus()).isEqualTo(GenerationTaskStatus.PENDING);
-        assertThat(task.getUser().getEmail()).isEqualTo("teacher@example.com");
+        assertThat(task.getUser().getUsername()).isEqualTo("teacher");
     }
 }

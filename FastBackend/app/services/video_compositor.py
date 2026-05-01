@@ -3,6 +3,9 @@ import subprocess
 
 
 class VideoCompositor:
+    def __init__(self, timeout_seconds: int = 180) -> None:
+        self.timeout_seconds = timeout_seconds
+
     def compose(
         self,
         export_task_id: int,
@@ -41,5 +44,6 @@ class VideoCompositor:
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            timeout=self.timeout_seconds,
         )
         return video_path, command

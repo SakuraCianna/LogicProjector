@@ -27,7 +27,7 @@ class ExportTaskPersistenceTest {
 
     @Test
     void shouldPersistPendingExportTaskAndFreezeCredits() {
-        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher@example.com", 120, 0, "ACTIVE"));
+        UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher", "hash", 120, 0, "ACTIVE"));
         GenerationTask generationTask = generationTaskRepository.save(GenerationTask.pending(user, "class Demo {}", "java"));
         generationTask.complete("QUICK_SORT", 0.92, new ObjectMapper().createObjectNode(), "summary");
 
