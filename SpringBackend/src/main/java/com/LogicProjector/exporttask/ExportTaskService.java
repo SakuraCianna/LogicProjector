@@ -1,13 +1,13 @@
 package com.LogicProjector.exporttask;
 
-import java.util.List;
 import java.nio.file.Path;
+import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -19,10 +19,10 @@ import com.LogicProjector.billing.BillingService;
 import com.LogicProjector.exporttask.api.CreateExportTaskResponse;
 import com.LogicProjector.exporttask.api.ExportTaskListItemResponse;
 import com.LogicProjector.exporttask.api.ExportTaskResponse;
-import com.LogicProjector.queue.TaskMessagePublisher;
 import com.LogicProjector.generation.GenerationTask;
 import com.LogicProjector.generation.GenerationTaskRepository;
 import com.LogicProjector.generation.GenerationTaskStatus;
+import com.LogicProjector.queue.TaskMessagePublisher;
 
 @Service
 public class ExportTaskService {
@@ -116,7 +116,7 @@ public class ExportTaskService {
             throw new ExportTaskException("EXPORT_NOT_READY");
         }
 
-        FileSystemResource resource = new FileSystemResource(Path.of(downloadRoot).resolve(Path.of(exportTask.getVideoPath()).getFileName()));
+        FileSystemResource resource = new FileSystemResource(Path.of(downloadRoot).resolve(exportTask.getVideoPath()));
         if (!resource.exists()) {
             throw new ExportTaskException("EXPORT_FILE_MISSING");
         }

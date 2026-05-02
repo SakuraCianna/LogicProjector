@@ -13,12 +13,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class NarrationService {
 
     private static final String SYSTEM_PROMPT = """
-            You write short teaching summaries and step narration for Java algorithm walkthroughs.
-            Return strict JSON with fields: summary, stepNarrations.
-            Keep the summary to 1 sentence, concrete, and classroom-friendly.
-            stepNarrations must be an array of exactly one short sentence per step, matching the input step count and order.
-            Preserve the deterministic meaning of each step. Improve clarity, but do not invent state changes that are not present.
-            Do not mention unsupported behavior or implementation uncertainty.
+            你负责为 Java 算法演示生成中文课堂讲解。
+            必须返回严格 JSON，字段为 summary 和 stepNarrations。
+            summary 用 1 句中文概括算法过程，表达具体、适合课堂讲解。
+            stepNarrations 必须是中文数组，按输入步骤顺序逐步对应，每一步只写 1 句简短中文。
+            保留每一步确定性的状态含义，可以提升表达清晰度，但不能编造不存在的状态变化。
+            不要提到不支持、无法确定、模型限制或实现不确定性。
             """;
 
     private final AiChatClient aiChatClient;
@@ -42,13 +42,13 @@ public class NarrationService {
         }
 
         String summary = switch (algorithm) {
-            case QUICK_SORT -> "Quick sort picks a pivot, partitions the array, and recursively sorts both sides.";
-            case BINARY_SEARCH -> "Binary search keeps halving the search range until the target position is isolated.";
-            case MERGE_SORT -> "Merge sort splits the array, sorts each half, and merges the results in order.";
-            case BUBBLE_SORT -> "Bubble sort repeatedly compares adjacent values and swaps larger values to the right.";
-            case SELECTION_SORT -> "Selection sort finds the smallest remaining value and places it into the sorted prefix.";
-            case INSERTION_SORT -> "Insertion sort inserts each next value into the already sorted left side.";
-            default -> "The algorithm is explained step by step through data structure changes.";
+            case QUICK_SORT -> "快速排序选择基准值完成分区，再递归排序左右两侧。";
+            case BINARY_SEARCH -> "二分查找不断缩小搜索区间，直到定位目标位置。";
+            case MERGE_SORT -> "归并排序先拆分区间，再按顺序合并已排序的子区间。";
+            case BUBBLE_SORT -> "冒泡排序反复比较相邻元素，把较大的值逐步交换到右侧。";
+            case SELECTION_SORT -> "选择排序每轮找到剩余区间最小值，并放入已排序前缀。";
+            case INSERTION_SORT -> "插入排序把每个新元素插入左侧已排序区间的正确位置。";
+            default -> "算法会通过数据结构变化逐步讲解。";
         };
         return new NarrationResult(summary, List.of());
     }
@@ -72,21 +72,21 @@ public class NarrationService {
 
     private String buildNarrationPrompt(DetectedAlgorithm algorithm, VisualizationPayload payload, String sourceCode) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("Algorithm: ").append(algorithm.name()).append("\n");
-        prompt.append("Step count: ").append(payload.steps().size()).append("\n");
-        prompt.append("Steps:\n");
+        prompt.append("算法：").append(algorithm.name()).append("\n");
+        prompt.append("步骤数量：").append(payload.steps().size()).append("\n");
+        prompt.append("步骤：\n");
 
         for (int index = 0; index < payload.steps().size(); index++) {
             VisualizationStep step = payload.steps().get(index);
             prompt.append(index + 1)
-                    .append(". title=")
+                    .append(". 标题=")
                     .append(step.title())
-                    .append("; currentNarration=")
+                    .append("；当前讲解=")
                     .append(step.narration())
                     .append("\n");
         }
 
-        prompt.append("Source code:\n").append(sourceCode);
+        prompt.append("源代码：\n").append(sourceCode);
         return prompt.toString();
     }
 }

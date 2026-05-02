@@ -78,6 +78,11 @@ public class UserAccount {
         this.creditsBalance = this.creditsBalance - amount;
     }
 
+    public void creditCredits(int amount) {
+        requirePositiveAmount(amount);
+        this.creditsBalance = this.creditsBalance + amount;
+    }
+
     public void freezeCredits(int amount) {
         requirePositiveAmount(amount);
         if (creditsBalance < amount) {

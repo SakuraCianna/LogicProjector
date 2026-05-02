@@ -12,10 +12,20 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+
 class AuthControllerTest {
+
+    private static final Validator VALIDATOR = Validation.buildDefaultValidatorFactory().getValidator();
 
     private final AuthService authService = mock(AuthService.class);
     private final AuthController authController = new AuthController(authService);
+
+    @Test
+    void shouldAcceptSixCharacterPasswordsForSeededAccounts() {
+        assertThat(VALIDATOR.validate(new AuthRequest("Sakura", "123456"))).isEmpty();
+    }
 
     @Test
     void shouldRejectMeWithoutAuthentication() {

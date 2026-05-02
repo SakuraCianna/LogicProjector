@@ -78,3 +78,22 @@ export interface ExportTaskListItemResponse {
   createdAt: string
   updatedAt: string
 }
+
+export interface RechargePackageResponse {
+  code: string
+  name: string
+  credits: number
+  amountCents: number
+  description: string
+}
+
+export interface RechargeOrderResponse {
+  id: number
+  packageCode: string
+  packageName: string
+  credits: number
+  amountCents: number
+  status: string
+  createdAt: string
+  paidAt: string | null
+}

@@ -19,6 +19,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Component
 public class ExportTaskProcessor {
 
+    private static final int TASK_ERROR_MESSAGE_MAX_LENGTH = 255;
+
     private final ExportTaskRepository exportTaskRepository;
     private final MediaExportWorkerClient workerClient;
     private final ObjectMapper objectMapper;
@@ -92,8 +94,9 @@ public class ExportTaskProcessor {
             return;
         }
 
+        String taskErrorMessage = summarizeErrorMessage(errorMessage, "EXPORT_DISPATCH_FAILED");
         billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
-        exportTask.fail(errorMessage);
+        exportTask.fail(taskErrorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", "Export dispatch failed", errorMessage);
     }
 
@@ -106,19 +109,42 @@ public class ExportTaskProcessor {
             return;
         }
 
+        String taskErrorMessage = summarizeErrorMessage(errorMessage, "EXPORT_RETRY_EXHAUSTED");
         billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
-        exportTask.fail(errorMessage);
+        exportTask.fail(taskErrorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", "Export moved to dead-letter queue", errorMessage);
     }
 
     private void failAndRefund(ExportTask exportTask, String errorMessage, String logMessage) {
+        String taskErrorMessage = summarizeErrorMessage(errorMessage, "EXPORT_FAILED");
         billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
-        exportTask.fail(errorMessage);
+        exportTask.fail(taskErrorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", logMessage, errorMessage);
     }
 
     private UserAccount lockedUser(ExportTask exportTask) {
         return userAccountRepository.findByIdForUpdate(exportTask.getUser().getId())
                 .orElseThrow(() -> new ExportTaskException("USER_NOT_FOUND"));
+    }
+
+    private String summarizeErrorMessage(String errorMessage, String fallback) {
+        if (errorMessage == null) {
+            return fallback;
+        }
+
+        String normalized = errorMessage.replace('\r', '\n');
+        int newlineIndex = normalized.indexOf('\n');
+        String summary = newlineIndex >= 0 ? normalized.substring(0, newlineIndex) : normalized;
+        summary = summary.trim();
+
+        if (summary.isEmpty()) {
+            return fallback;
+        }
+
+        if (summary.length() <= TASK_ERROR_MESSAGE_MAX_LENGTH) {
+            return summary;
+        }
+
+        return summary.substring(0, TASK_ERROR_MESSAGE_MAX_LENGTH - 3) + "...";
     }
 }

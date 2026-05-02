@@ -1,59 +1,81 @@
 <template>
   <main class="app-shell" :class="{ 'app-shell-auth': viewState === 'auth' }">
-    <AuthPanel
-      v-if="viewState === 'auth'"
-      :busy="authBusy"
-      :error-message="authErrorMessage"
-      :success-message="authMessage"
-      @login="handleLogin"
-      @register="handleRegister"
-    />
+    <AuthPanel v-if="viewState === 'auth'" :busy="authBusy" :error-message="authErrorMessage"
+      :success-message="authMessage" @login="handleLogin" @register="handleRegister" />
+
+    <section v-else-if="activePage === 'player'" class="lesson-page">
+      <header class="lesson-header">
+        <div>
+          <p class="panel-kicker">代码步骤讲解</p>
+          <h1>{{ task?.detectedAlgorithm ? formatAlgorithmName(task.detectedAlgorithm) : '算法讲解' }}</h1>
+        </div>
+        <div class="lesson-actions">
+          <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新提交代码</button>
+          <button class="secondary-button" type="button" @click="openGenerationsPage">最近生成</button>
+        </div>
+      </header>
+
+      <section
+        v-if="currentUser && task && (viewState === 'generated' || viewState === 'exporting' || viewState === 'exported')"
+        class="lesson-layout">
+        <section class="lesson-main-card">
+          <VisualizationStage :step="currentStep" />
+          <PlaybackControls :step-count="task.visualizationPayload?.steps.length ?? 0" :active-index="activeIndex"
+            :is-playing="isPlaying" :playback-speed="playbackSpeed" @change="setActiveIndex($event)"
+            @change-speed="changePlaybackSpeed" @toggle-play="togglePlayback" />
+        </section>
+        <aside class="lesson-side-card">
+          <TaskSummaryCard :task="task" :export-busy="exportBusy || viewState === 'exporting'" @export="handleExport" />
+          <ExplanationPanel :step="currentStep" />
+          <ExportStatusCard v-if="exportTask" :export-task="exportTask" @retry="handleExport" />
+        </aside>
+        <CodeHighlightPanel :source-code="sourceCode" :highlighted-lines="currentStep.highlightedLines" />
+      </section>
+
+      <GenerationStatusCard v-else-if="currentUser && task" :task="task">
+        <template #actions>
+          <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
+        </template>
+      </GenerationStatusCard>
+
+      <section v-else class="empty-page-card">
+        <p class="panel-kicker">步骤讲解</p>
+        <h2>还没有可播放的讲解</h2>
+        <p>先新建一次讲解，或从最近生成中打开已有任务。</p>
+      </section>
+      <p v-if="bannerMessage" class="error-banner workspace-banner">{{ bannerMessage }}</p>
+    </section>
 
     <section v-else class="workspace-shell">
       <aside class="workspace-sidebar">
         <section class="sidebar-brand">
           <p class="panel-kicker">算法演示工作室</p>
-          <h1>教师工作台</h1>
-          <p>恢复最近的讲解任务，导出完整课程视频，专注完成一条教学流程。</p>
+          <h1>工作台</h1>
+          <p>从代码生成讲解，再进入独立播放页查看每一步。</p>
         </section>
 
-        <button class="primary-button sidebar-primary-action" data-new-walkthrough-button type="button" @click="openNewWalkthrough">
-          新建讲解
-        </button>
-
-        <section class="sidebar-section">
-          <p class="panel-kicker">最近生成</p>
-          <p v-if="recentGenerationTasks.length === 0" class="sidebar-empty">暂无生成记录。</p>
-          <button
-            v-for="item in recentGenerationTasks"
-            :key="`generation-${item.id}`"
-            class="sidebar-history-item"
-            :class="{ active: selectedHistoryKind === 'generation' && selectedHistoryId === item.id }"
-            :data-generation-history-item="item.id"
-            type="button"
-            @click="handleSelectGeneration(item.id)"
-          >
-            <strong>{{ item.detectedAlgorithm ? formatAlgorithmName(item.detectedAlgorithm) : item.sourcePreview }}</strong>
-            <span>{{ formatGenerationStatus(item.status) }}</span>
+        <nav class="sidebar-nav" aria-label="工作台导航">
+          <button class="sidebar-nav-item" :class="{ active: activePage === 'compose' }" data-new-walkthrough-button
+            type="button" @click="openNewWalkthrough">
+            <strong>新建讲解</strong>
+            <span>粘贴 Java 代码</span>
           </button>
-        </section>
-
-        <section class="sidebar-section">
-          <p class="panel-kicker">最近导出</p>
-          <p v-if="recentExportTasks.length === 0" class="sidebar-empty">暂无导出记录。</p>
-          <button
-            v-for="item in recentExportTasks"
-            :key="`export-${item.id}`"
-            class="sidebar-history-item"
-            :class="{ active: selectedHistoryKind === 'export' && selectedHistoryId === item.id }"
-            :data-export-history-item="item.id"
-            type="button"
-            @click="handleSelectExport(item.id)"
-          >
-            <strong>{{ item.detectedAlgorithm ? `${formatAlgorithmName(item.detectedAlgorithm)} 导出` : `导出 #${item.id}` }}</strong>
-            <span>{{ formatExportStatus(item.status) }}</span>
+          <button class="sidebar-nav-item" :class="{ active: activePage === 'generations' }" type="button"
+            @click="openGenerationsPage">
+            <strong>最近生成</strong>
+            <span>{{ recentGenerationTasks.length }} 条记录</span>
           </button>
-        </section>
+          <button class="sidebar-nav-item" :class="{ active: activePage === 'exports' }" type="button"
+            @click="openExportsPage">
+            <strong>最近导出</strong>
+            <span>{{ recentExportTasks.length }} 条记录</span>
+          </button>
+          <button class="sidebar-nav-item" :class="{ active: activePage === 'recharge' }" type="button"
+            @click="openRechargePage">
+            <strong>充值商店</strong>
+            <span>购买额度</span>
+          </button>
+        </nav>
 
         <section class="sidebar-footer">
           <strong>{{ currentUser?.username }}</strong>
@@ -69,46 +91,74 @@
             <h2>{{ workspaceHeadline }}</h2>
             <p class="workspace-copy">{{ workspaceDescription }}</p>
           </div>
-
-          <div class="workspace-meta">
-            <span class="workspace-pill">{{ workspaceStatus }}</span>
-            <span v-if="workspaceSecondaryMeta" class="workspace-meta-text">{{ workspaceSecondaryMeta }}</span>
-          </div>
         </section>
 
         <CodeSubmissionPanel
-          v-if="currentUser && (viewState === 'ready' || viewState === 'error-recoverable')"
-          v-model="sourceCode"
-          :busy="generationBusy"
-          :error-message="submissionErrorMessage"
-          @submit="handleSubmit"
-        />
+          v-if="currentUser && activePage === 'compose' && (viewState === 'ready' || viewState === 'error-recoverable')"
+          v-model="sourceCode" :busy="generationBusy" :error-message="submissionErrorMessage" @submit="handleSubmit" />
 
-        <section v-else-if="currentUser && task && (viewState === 'generated' || viewState === 'exporting' || viewState === 'exported')" class="player-layout">
-          <TaskSummaryCard :task="task" :export-busy="exportBusy || viewState === 'exporting'" @export="handleExport" />
-          <div class="player-actions">
-            <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新提交代码</button>
-          </div>
-          <VisualizationStage :step="currentStep" />
-          <ExplanationPanel :step="currentStep" />
-          <CodeHighlightPanel :source-code="sourceCode" :highlighted-lines="currentStep.highlightedLines" />
-          <ExportStatusCard v-if="exportTask" :export-task="exportTask" @retry="handleExport" />
-          <PlaybackControls
-            :step-count="task.visualizationPayload?.steps.length ?? 0"
-            :active-index="activeIndex"
-            :is-playing="isPlaying"
-            :playback-speed="playbackSpeed"
-            @change="setActiveIndex($event)"
-            @change-speed="changePlaybackSpeed"
-            @toggle-play="togglePlayback"
-          />
-        </section>
-
-        <GenerationStatusCard v-else-if="currentUser && task" :task="task">
+        <GenerationStatusCard v-else-if="currentUser && activePage === 'compose' && task" :task="task">
           <template #actions>
             <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
           </template>
         </GenerationStatusCard>
+
+        <section v-else-if="currentUser && activePage === 'generations'" class="history-page-card">
+          <div class="history-page-header">
+            <p class="panel-kicker">最近生成</p>
+            <h2>生成记录</h2>
+          </div>
+          <p v-if="recentGenerationTasks.length === 0" class="history-empty">暂无生成记录。</p>
+          <button v-for="item in recentGenerationTasks" :key="`generation-${item.id}`" class="history-list-item"
+            :data-generation-history-item="item.id" type="button" @click="handleSelectGeneration(item.id)">
+            <strong>{{ item.detectedAlgorithm ? formatAlgorithmName(item.detectedAlgorithm) : item.sourcePreview
+              }}</strong>
+            <span>{{ formatGenerationStatus(item.status) }}</span>
+            <small>{{ item.updatedAt }}</small>
+          </button>
+        </section>
+
+        <section v-else-if="currentUser && activePage === 'exports'" class="history-page-card">
+          <div class="history-page-header">
+            <p class="panel-kicker">最近导出</p>
+            <h2>导出记录</h2>
+          </div>
+          <p v-if="recentExportTasks.length === 0" class="history-empty">暂无导出记录。</p>
+          <button v-for="item in recentExportTasks" :key="`export-${item.id}`" class="history-list-item"
+            :data-export-history-item="item.id" type="button" @click="handleSelectExport(item.id)">
+            <strong>{{ item.detectedAlgorithm ? `${formatAlgorithmName(item.detectedAlgorithm)} 导出` : `导出 #${item.id}`
+              }}</strong>
+            <span>{{ formatExportStatus(item.status) }}</span>
+            <small>{{ item.updatedAt }}</small>
+          </button>
+        </section>
+
+        <section v-else-if="currentUser && activePage === 'recharge'" class="recharge-page-card">
+          <div class="history-page-header">
+            <p class="panel-kicker">充值商店</p>
+            <h2>购买额度</h2>
+            <p>当前余额：{{ currentUser.creditsBalance }}</p>
+          </div>
+          <div class="recharge-package-grid">
+            <article v-for="item in rechargePackages" :key="item.code" class="recharge-package-card">
+              <strong>{{ item.name }}</strong>
+              <span>{{ item.credits }} 额度</span>
+              <small>{{ item.description }}</small>
+              <b>￥{{ (item.amountCents / 100).toFixed(2) }}</b>
+              <button class="primary-button" type="button" :disabled="rechargeBusy"
+                @click="handleRecharge(item.code)">模拟支付</button>
+            </article>
+          </div>
+          <div class="recharge-orders">
+            <h3>最近充值</h3>
+            <p v-if="rechargeOrders.length === 0" class="history-empty">暂无充值记录。</p>
+            <div v-for="order in rechargeOrders" :key="order.id" class="recharge-order-row">
+              <span>{{ order.packageName }}</span>
+              <span>{{ order.credits }} 额度</span>
+              <span>{{ formatRechargeStatus(order.status) }}</span>
+            </div>
+          </div>
+        </section>
 
         <p v-if="bannerMessage" class="error-banner workspace-banner">{{ bannerMessage }}</p>
       </section>
@@ -123,14 +173,18 @@ import {
   clearStoredToken,
   createExportTask,
   createGenerationTask,
+  createRechargeOrder,
   getStoredToken,
   getExportTask,
   getGenerationTask,
   getRecentExportTasks,
   getRecentGenerationTasks,
+  getRecentRechargeOrders,
+  getRechargePackages,
   login,
   me,
   register,
+  simulateRechargePayment,
   setStoredToken,
 } from './api/pasApi'
 import AuthPanel from './components/AuthPanel.vue'
@@ -148,10 +202,13 @@ import type {
   ExportTaskResponse,
   GenerationTaskListItemResponse,
   GenerationTaskResponse,
+  RechargeOrderResponse,
+  RechargePackageResponse,
   UserProfile,
 } from './types/pas'
 
 type ViewState = 'auth' | 'ready' | 'generating' | 'generated' | 'exporting' | 'exported' | 'error-recoverable'
+type WorkspacePage = 'compose' | 'player' | 'generations' | 'exports' | 'recharge'
 
 const defaultSourceCode = `public class QuickSort {
   void sort(int[] arr, int low, int high) {
@@ -166,6 +223,8 @@ const exportMeta = ref<CreateExportTaskResponse | null>(null)
 const exportTask = ref<ExportTaskResponse | null>(null)
 const recentGenerationTasks = ref<GenerationTaskListItemResponse[]>([])
 const recentExportTasks = ref<ExportTaskListItemResponse[]>([])
+const rechargePackages = ref<RechargePackageResponse[]>([])
+const rechargeOrders = ref<RechargeOrderResponse[]>([])
 const sourceCode = ref(defaultSourceCode)
 const activeIndex = ref(0)
 const playbackSpeed = ref(1)
@@ -173,6 +232,7 @@ const isPlaying = ref(false)
 const authBusy = ref(false)
 const generationBusy = ref(false)
 const exportBusy = ref(false)
+const rechargeBusy = ref(false)
 const authMessage = ref('')
 const authErrorMessage = ref('')
 const submissionErrorMessage = ref('')
@@ -180,17 +240,18 @@ const exportErrorMessage = ref('')
 const activityErrorMessage = ref('')
 const selectedHistoryKind = ref<'new' | 'generation' | 'export'>('new')
 const selectedHistoryId = ref<number | null>(null)
+const activePage = ref<WorkspacePage>('compose')
 let exportPollHandle: ReturnType<typeof setInterval> | null = null
 let generationPollHandle: ReturnType<typeof setInterval> | null = null
 let playbackHandle: ReturnType<typeof setInterval> | null = null
 
-const currentStep = computed(() => task.value?.visualizationPayload?.steps[activeIndex.value] ?? {
+const currentStep = computed(() => localizeStep(task.value?.visualizationPayload?.steps[activeIndex.value] ?? {
   title: '暂无步骤',
   narration: '',
   arrayState: [],
   activeIndices: [],
   highlightedLines: [],
-})
+}))
 
 const viewState = computed<ViewState>(() => {
   if (!currentUser.value) {
@@ -258,36 +319,19 @@ const workspaceDescription = computed(() => {
   return '逐步查看讲解内容，确认每个教学步骤是否清晰。'
 })
 
-const workspaceStatus = computed(() => {
-  if (!task.value) {
-    return '准备新课程'
-  }
-
-  if (exportTask.value?.status === 'COMPLETED') {
-    return '导出已完成'
-  }
-
-  if (exportTask.value) {
-    return `导出${formatExportStatus(exportTask.value.status)}`
-  }
-
-  return `任务${formatGenerationStatus(task.value.status)}`
-})
-
-const workspaceSecondaryMeta = computed(() => {
-  if (!task.value) {
-    return selectedHistoryKind.value === 'new' ? '面向课堂的算法讲解工作台' : null
-  }
-
-  if (task.value.detectedAlgorithm) {
-    return formatAlgorithmName(task.value.detectedAlgorithm)
-  }
-
-  return task.value.language.toUpperCase()
-})
-
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
+}
+
+function formatRechargeStatus(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return '待支付'
+    case 'PAID':
+      return '已入账'
+    default:
+      return status
+  }
 }
 
 function formatGenerationStatus(status: string) {
@@ -341,13 +385,50 @@ function formatAlgorithmName(algorithm: string) {
   }
 }
 
+function localizeStep<T extends { title: string; narration: string }>(step: T): T {
+  return {
+    ...step,
+    title: localizeStepText(step.title),
+    narration: localizeStepText(step.narration),
+  }
+}
+
+function localizeStepText(text: string) {
+  const mapping: Record<string, string> = {
+    'Choose pivot': '选择基准值',
+    'Use the last value as pivot': '使用当前区间最后一个值作为基准值。',
+    'Compare to pivot': '与基准值比较',
+    'Check whether the value belongs on the left side': '判断当前值是否应该放到基准值左侧。',
+    'Move left of pivot': '移动到基准值左侧',
+    'Keep smaller values before the pivot': '把较小的值保留在基准值前面。',
+    'Place pivot': '放置基准值',
+    'The pivot lands in its final position': '基准值移动到本轮排序后的最终位置。',
+    'Quick sort complete': '快速排序完成',
+    'All partitions are sorted': '所有分区都已经完成排序。',
+    'Check middle': '检查中间位置',
+    'Focus the middle candidate': '聚焦当前区间的中间候选值。',
+    'Split range': '拆分区间',
+    'Prepare two sorted halves for merge': '准备两个已排序子区间用于合并。',
+    'Merge next value': '合并下一个值',
+    'Write the smaller front value back into the array': '把两个子区间前端较小的值写回数组。',
+    'Append remaining left': '追加左侧剩余值',
+    'Copy leftover values from the left half': '把左半区剩余的值复制回数组。',
+    'Append remaining right': '追加右侧剩余值',
+    'Copy leftover values from the right half': '把右半区剩余的值复制回数组。',
+    'Merge sort complete': '归并排序完成',
+    'All ranges have been merged back in order': '所有区间都已经按顺序合并完成。',
+  }
+
+  return mapping[text] ?? text
+}
+
 function isAuthExpiredError(error: unknown) {
   if (!(error instanceof Error)) {
     return false
   }
 
   const status = Reflect.get(error, 'status')
-  return error.name === 'AuthExpiredError' || status === 401 || status === 403
+  return error.name === 'AuthExpiredError' || status === 401
 }
 
 function stopGenerationPolling() {
@@ -395,6 +476,24 @@ async function refreshRecentActivity() {
   }
 }
 
+async function refreshRechargeStore() {
+  try {
+    const [packages, orders] = await Promise.all([
+      getRechargePackages(),
+      getRecentRechargeOrders(),
+    ])
+    rechargePackages.value = packages
+    rechargeOrders.value = orders
+    activityErrorMessage.value = ''
+  } catch (error) {
+    if (isAuthExpiredError(error)) {
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      return
+    }
+    activityErrorMessage.value = getErrorMessage(error, '充值商店加载失败')
+  }
+}
+
 function handleAuthExpired(_message = '登录已过期，请重新登录。') {
   clearStoredToken()
   currentUser.value = null
@@ -413,6 +512,7 @@ function handleAuthExpired(_message = '登录已过期，请重新登录。') {
 function startOver() {
   task.value = null
   submissionErrorMessage.value = ''
+  activePage.value = 'compose'
   clearHistorySelection()
   resetExportState()
   stopGenerationPolling()
@@ -420,6 +520,7 @@ function startOver() {
 }
 
 function openNewWalkthrough() {
+  activePage.value = 'compose'
   clearHistorySelection()
   sourceCode.value = defaultSourceCode
   task.value = null
@@ -428,6 +529,21 @@ function openNewWalkthrough() {
   resetExportState()
   stopGenerationPolling()
   stopPlayback()
+}
+
+function openGenerationsPage() {
+  activePage.value = 'generations'
+}
+
+function openExportsPage() {
+  activePage.value = 'exports'
+}
+
+async function openRechargePage() {
+  activePage.value = 'recharge'
+  if (rechargePackages.value.length === 0) {
+    await refreshRechargeStore()
+  }
 }
 
 async function handleSelectGeneration(taskId: number) {
@@ -444,6 +560,7 @@ async function handleSelectGeneration(taskId: number) {
     sourceCode.value = loadedTask.sourceCode ?? defaultSourceCode
     selectedHistoryKind.value = 'generation'
     selectedHistoryId.value = taskId
+    activePage.value = loadedTask.status === 'FAILED' ? 'compose' : 'player'
     activeIndex.value = 0
     activityErrorMessage.value = ''
 
@@ -478,6 +595,7 @@ async function handleSelectExport(exportTaskId: number) {
     sourceCode.value = loadedTask.sourceCode ?? defaultSourceCode
     selectedHistoryKind.value = 'export'
     selectedHistoryId.value = exportTaskId
+    activePage.value = 'player'
     activeIndex.value = 0
     activityErrorMessage.value = ''
 
@@ -508,6 +626,7 @@ async function handleSubmit(nextSourceCode: string) {
     task.value = await createGenerationTask(nextSourceCode)
     selectedHistoryKind.value = 'generation'
     selectedHistoryId.value = task.value.id
+    activePage.value = 'player'
     await refreshRecentActivity()
     if (task.value.status !== 'COMPLETED') {
       await refreshGenerationTask(task.value.id)
@@ -520,9 +639,29 @@ async function handleSubmit(nextSourceCode: string) {
       handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
       return
     }
+    activePage.value = 'compose'
     submissionErrorMessage.value = getErrorMessage(error, '生成失败')
   } finally {
     generationBusy.value = false
+  }
+}
+
+async function handleRecharge(packageCode: string) {
+  try {
+    rechargeBusy.value = true
+    activityErrorMessage.value = ''
+    const order = await createRechargeOrder(packageCode)
+    await simulateRechargePayment(order.id)
+    currentUser.value = await me()
+    await refreshRechargeStore()
+  } catch (error) {
+    if (isAuthExpiredError(error)) {
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      return
+    }
+    activityErrorMessage.value = getErrorMessage(error, '充值失败')
+  } finally {
+    rechargeBusy.value = false
   }
 }
 

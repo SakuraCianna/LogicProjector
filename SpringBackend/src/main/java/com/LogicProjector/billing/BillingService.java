@@ -36,6 +36,18 @@ public class BillingService {
         return GENERATION_CHARGE;
     }
 
+    public void recordRecharge(UserAccount user, int credits, Long rechargeOrderId) {
+        billingRecordRepository.save(new BillingRecord(
+                null,
+                user,
+                null,
+                "RECHARGE",
+                credits,
+                user.getCreditsBalance(),
+                "Recharge order " + rechargeOrderId
+        ));
+    }
+
     public void recordExportFreeze(UserAccount user, GenerationTask task, ExportTask exportTask) {
         billingRecordRepository.save(new BillingRecord(
                 null,

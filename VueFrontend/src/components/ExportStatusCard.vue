@@ -7,14 +7,20 @@
     <p>冻结额度：{{ exportTask.creditsFrozen ?? 0 }}</p>
     <p v-if="exportTask.creditsCharged !== null">实际扣费：{{ exportTask.creditsCharged }}</p>
     <p v-if="exportTask.errorMessage" class="export-error">{{ exportTask.errorMessage }}</p>
-    <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button" @click="$emit('retry')">重新导出</button>
-    <a v-if="exportTask.videoUrl" :href="exportTask.videoUrl" data-download-link>下载视频</a>
+    <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button"
+      @click="$emit('retry')">重新导出</button>
+    <button v-if="exportTask.videoUrl" class="primary-button" type="button" :disabled="downloadBusy"
+      data-download-button @click="handleDownload">
+      {{ downloadBusy ? '下载中...' : '下载视频' }}
+    </button>
+    <p v-if="downloadError" class="download-error">{{ downloadError }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
+import { downloadExportVideo } from '../api/pasApi'
 import type { ExportTaskResponse } from '../types/pas'
 
 const props = defineProps<{
@@ -24,6 +30,23 @@ const props = defineProps<{
 defineEmits<{
   retry: []
 }>()
+
+const downloadBusy = ref(false)
+const downloadError = ref('')
+
+async function handleDownload() {
+  if (!props.exportTask.videoUrl) return
+  downloadBusy.value = true
+  downloadError.value = ''
+  try {
+    const filename = `export-${props.exportTask.id}.mp4`
+    await downloadExportVideo(props.exportTask.id, filename)
+  } catch (error) {
+    downloadError.value = error instanceof Error ? error.message : '下载失败'
+  } finally {
+    downloadBusy.value = false
+  }
+}
 
 const statusCopy = computed(() => {
   if (props.exportTask.status === 'COMPLETED') {

@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -5,6 +6,8 @@ from app.services.frame_renderer import FrameRenderer
 from app.services.subtitle_service import SubtitleService
 from app.services.tts_service import TtsService
 from app.services.video_compositor import VideoCompositor
+
+logger = logging.getLogger(__name__)
 
 
 class ExportPipeline:
@@ -28,22 +31,27 @@ class ExportPipeline:
                 if payload.get("subtitleEnabled")
                 else None
             )
-            audio_path = (
-                self.tts_service.build_audio_file(
-                    export_task_id, payload["summary"], steps
-                )
-                if payload.get("ttsEnabled")
-                else None
-            )
+            audio_path = None
+            if payload.get("ttsEnabled"):
+                try:
+                    audio_path = self.tts_service.build_audio_file(
+                        export_task_id, payload["summary"], steps
+                    )
+                except Exception as tts_exc:
+                    logger.warning("TTS failed for export %s, continuing without audio: %s", export_task_id, tts_exc)
             video_path, _command = self.video_compositor.compose(
                 export_task_id, frame_dir, subtitle_path, audio_path
             )
+            # 返回相对于 output_root 的路径，便于 Spring 拼接
+            video_path_relative = video_path.relative_to(self.output_root)
+            subtitle_path_relative = subtitle_path.relative_to(self.output_root) if subtitle_path else None
+            audio_path_relative = audio_path.relative_to(self.output_root) if audio_path else None
             return {
                 "status": "COMPLETED",
                 "progress": 100,
-                "videoPath": str(video_path),
-                "subtitlePath": str(subtitle_path) if subtitle_path else None,
-                "audioPath": str(audio_path) if audio_path else None,
+                "videoPath": str(video_path_relative),
+                "subtitlePath": str(subtitle_path_relative) if subtitle_path_relative else None,
+                "audioPath": str(audio_path_relative) if audio_path_relative else None,
                 "tokenUsage": len(narration_text),
                 "renderSeconds": max(1, len(steps) * 3),
                 "concurrencyUnits": 1,

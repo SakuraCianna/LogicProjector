@@ -11,18 +11,24 @@ import com.LogicProjector.account.UserAccountRepository;
 import com.LogicProjector.analysis.AlgorithmRecognitionService;
 import com.LogicProjector.analysis.DetectedAlgorithm;
 import com.LogicProjector.analysis.RecognitionResult;
+import com.LogicProjector.analysis.UnsupportedAlgorithmException;
 import com.LogicProjector.billing.BillingService;
 import com.LogicProjector.systemlog.SystemLogService;
 import com.LogicProjector.visualization.NarrationResult;
 import com.LogicProjector.visualization.NarrationService;
 import com.LogicProjector.visualization.VisualizationPayload;
-import com.LogicProjector.visualization.VisualizationStep;
 import com.LogicProjector.visualization.VisualizationStateExtractorFactory;
+import com.LogicProjector.visualization.VisualizationStep;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
 public class GenerationTaskProcessor {
+
+    private static final int TASK_ERROR_MESSAGE_MAX_LENGTH = 255;
+    private static final String GENERATION_UNSUPPORTED = "GENERATION_UNSUPPORTED";
+    private static final String GENERATION_DISPATCH_FAILED = "GENERATION_DISPATCH_FAILED";
+    private static final String GENERATION_DEAD_LETTER = "GENERATION_DEAD_LETTER";
 
     private final GenerationTaskRepository generationTaskRepository;
     private final AlgorithmRecognitionService algorithmRecognitionService;
@@ -77,8 +83,8 @@ public class GenerationTaskProcessor {
                     .orElseThrow(() -> new IllegalArgumentException("User not found: " + task.getUser().getId()));
             billingService.chargeForCompletedGeneration(user, task);
             systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing completed");
-        } catch (com.LogicProjector.analysis.UnsupportedAlgorithmException exception) {
-            task.fail(exception.getMessage());
+        } catch (UnsupportedAlgorithmException exception) {
+            task.fail(summarizeErrorMessage(exception.getMessage(), GENERATION_UNSUPPORTED));
             systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation rejected as unsupported", exception.getMessage());
         }
     }
@@ -92,7 +98,7 @@ public class GenerationTaskProcessor {
             return;
         }
 
-        task.fail(errorMessage);
+        task.fail(summarizeErrorMessage(errorMessage, GENERATION_DISPATCH_FAILED));
         systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation dispatch failed", errorMessage);
     }
 
@@ -105,15 +111,39 @@ public class GenerationTaskProcessor {
             return;
         }
 
-        task.fail(errorMessage);
+        task.fail(summarizeErrorMessage(errorMessage, GENERATION_DEAD_LETTER));
         systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation moved to dead-letter queue", errorMessage);
+    }
+
+    private String summarizeErrorMessage(String errorMessage, String fallback) {
+        if (errorMessage == null) {
+            return fallback;
+        }
+
+        String normalized = errorMessage.replace('\r', '\n');
+        int newlineIndex = normalized.indexOf('\n');
+        String summary = newlineIndex >= 0 ? normalized.substring(0, newlineIndex) : normalized;
+        summary = summary.trim();
+
+        if (summary.isEmpty()) {
+            return fallback;
+        }
+
+        if (summary.length() <= TASK_ERROR_MESSAGE_MAX_LENGTH) {
+            return summary;
+        }
+
+        return summary.substring(0, TASK_ERROR_MESSAGE_MAX_LENGTH - 3) + "...";
     }
 
     private List<Integer> sampleInputFor(DetectedAlgorithm algorithm) {
         return switch (algorithm) {
-            case BUBBLE_SORT, SELECTION_SORT, INSERTION_SORT, QUICK_SORT, MERGE_SORT -> List.of(5, 1, 4, 2, 8);
-            case BINARY_SEARCH -> List.of(1, 3, 5, 7, 9, 11);
-            default -> List.of(3, 1, 2);
+            case BUBBLE_SORT, SELECTION_SORT, INSERTION_SORT, QUICK_SORT, MERGE_SORT ->
+                List.of(5, 1, 4, 2, 8);
+            case BINARY_SEARCH ->
+                List.of(1, 3, 5, 7, 9, 11);
+            default ->
+                List.of(3, 1, 2);
         };
     }
 

@@ -2,11 +2,7 @@
   <section class="task-summary-card">
     <p class="panel-kicker">生成结果</p>
     <h2>{{ algorithmName }}</h2>
-    <p>{{ task.summary }}</p>
-    <div class="summary-grid">
-      <span>置信度：{{ task.confidenceScore.toFixed(2) }}</span>
-      <span>消耗额度：{{ task.creditsCharged }}</span>
-    </div>
+    <p>{{ summaryText }}</p>
     <button v-if="task.status === 'COMPLETED'" data-export-button type="button" :disabled="exportBusy" @click="$emit('export')">
       {{ exportBusy ? '正在导出...' : '导出视频' }}
     </button>
@@ -45,6 +41,17 @@ const algorithmName = computed(() => {
     default:
       return props.task.detectedAlgorithm.replaceAll('_', ' ')
   }
+})
+
+const summaryText = computed(() => {
+  const summary = props.task.summary ?? ''
+  const mapping: Record<string, string> = {
+    'QuickSort recursively partitions the array around a pivot element to sort it.': '快速排序围绕基准值不断分区，并递归完成左右两侧排序。',
+    'Quick sort picks a pivot and partitions the array.': '快速排序选择基准值，将数组划分为较小值和较大值两部分。',
+    'Quick sort picks a pivot, partitions the array, and recursively sorts both sides.': '快速排序选择基准值完成分区，再递归排序左右两侧。',
+  }
+
+  return mapping[summary] ?? summary
 })
 
 defineEmits<{
