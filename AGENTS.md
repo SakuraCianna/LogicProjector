@@ -33,6 +33,7 @@
 - `README.md`, the listed demo account, and `scripts/local-smoke-test.ps1` still contain pre-auth/demo-flow assumptions in places (for example posting `userId`, calling protected routes without a Bearer token, or implying a seeded `teacher@example.com` account). Trust controllers and tests over those docs/scripts.
 - Runtime generation/export depends on RabbitMQ. Local default is `localhost:5672`; Docker uses service name `rabbitmq`. Spring publishes to AMQP and `@RabbitListener`s do the work; polling status does not trigger processing.
 - Spring uses MySQL only. Local default is database `logic_projector` with `root / 123456`; Docker uses the `mysql` service and persistent volume.
+- Database schema is managed manually through `create.sql` or explicit SQL changes; Spring does not auto-create or auto-update tables.
 - Vue API calls use same-origin `/api` paths by default. Vite dev proxies `/api` and `/health` to `http://localhost:8080`; Docker Nginx proxies them to Spring.
 - The authenticated Vue home screen is now a sidebar workspace, not a simple single-form page. Recent activity is loaded from Spring via `/api/generation-tasks/recent` and `/api/export-tasks/recent`, and reopening a history item relies on `GenerationTaskResponse.sourceCode` being present.
 - Spring download resolves files from `pas.export.download-root` first, then falls back to the raw worker-returned path.

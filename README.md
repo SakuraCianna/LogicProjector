@@ -189,22 +189,13 @@ PAS_AUTH_JWT_SECRET=至少 32 字节的 JWT 密钥
 mysql -uroot -p123456 < create.sql
 ```
 
-也可以先只创建数据库：
+如果只创建数据库而不执行 `create.sql`，SpringBackend 会因为缺少表而无法正常处理业务请求：
 
 ```sql
 CREATE DATABASE logic_projector DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-SpringBackend 当前配置为：
-
-```yml
-spring:
-  jpa:
-    hibernate:
-      ddl-auto: update
-```
-
-因此只要数据库已存在，执行 `mvn spring-boot:run` 时，Hibernate 会根据 JPA 实体自动创建缺失的表和字段。`create.sql` 是手动初始化脚本，不会被 Spring 自动执行。
+SpringBackend 不负责自动建表或自动更新表结构。数据库结构采用手动维护方式：首次部署执行 `create.sql`，后续实体字段变化时同步更新 SQL 脚本并手动执行变更。`create.sql` 不会被 Spring 自动执行。
 
 主要数据表：
 
@@ -220,7 +211,7 @@ spring:
 
 启动前确认：
 
-- MySQL 已启动，数据库 `logic_projector` 已存在或已执行 `create.sql`。
+- MySQL 已启动，并已执行 `create.sql` 完成表结构初始化。
 - RabbitMQ 已启动。
 - `.env` 已配置。
 - FastBackend conda 环境已安装依赖。
@@ -420,5 +411,5 @@ docker compose config --quiet
 - FastBackend 导出视频需要 ffmpeg。
 - FastBackend 生成文件位于 `FastBackend/outputs/`，该目录已被 git 忽略。
 - `.env` 包含敏感配置，已被 git 忽略，不要提交。
-- `create.sql` 是人工初始化脚本；日常运行主要由 JPA 实体和 `ddl-auto=update` 维护表结构。
+- `create.sql` 是人工初始化脚本；表结构由 SQL 脚本和人工变更维护，SpringBackend 不自动建表。
 - 本地数据库中有真实数据时，不要随意运行会清空表的集成测试。
