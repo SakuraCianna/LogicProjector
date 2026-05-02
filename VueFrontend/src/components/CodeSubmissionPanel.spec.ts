@@ -15,6 +15,6 @@ describe('CodeSubmissionPanel', () => {
 
     await wrapper.find('form').trigger('submit')
 
-    expect(wrapper.text()).toContain('Paste Java code before generating a walkthrough.')
+    expect(wrapper.text()).toContain('请先粘贴 Java 代码，再生成讲解。')
   })
 })

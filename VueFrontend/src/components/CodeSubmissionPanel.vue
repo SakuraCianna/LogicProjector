@@ -1,13 +1,13 @@
 <template>
   <form class="submission-panel" @submit.prevent="submit">
     <div class="panel-header">
-      <p class="panel-kicker">Pas</p>
-      <h1>Generate an algorithm walkthrough</h1>
-      <p class="panel-copy">Paste Java algorithm code and turn it into a guided visualization for class.</p>
+      <p class="panel-kicker">算法讲解</p>
+      <h1>生成算法教学演示</h1>
+      <p class="panel-copy">粘贴 Java 算法代码，生成适合课堂讲解的可视化流程。</p>
     </div>
     <textarea v-model="sourceCode" class="code-input" spellcheck="false" />
     <p v-if="inlineMessage || errorMessage" class="submission-message">{{ inlineMessage || errorMessage }}</p>
-    <button class="primary-button" type="submit" :disabled="busy">{{ busy ? 'Generating...' : 'Generate walkthrough' }}</button>
+    <button class="primary-button" type="submit" :disabled="busy">{{ busy ? '正在生成...' : '生成讲解' }}</button>
   </form>
 </template>
 
@@ -47,7 +47,7 @@ function submit() {
   }
 
   if (!sourceCode.value.trim()) {
-    inlineMessage.value = 'Paste Java code before generating a walkthrough.'
+    inlineMessage.value = '请先粘贴 Java 代码，再生成讲解。'
     return
   }
 

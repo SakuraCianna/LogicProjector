@@ -1,5 +1,5 @@
 <template>
-  <main class="app-shell">
+  <main class="app-shell" :class="{ 'app-shell-auth': viewState === 'auth' }">
     <AuthPanel
       v-if="viewState === 'auth'"
       :busy="authBusy"
@@ -12,18 +12,18 @@
     <section v-else class="workspace-shell">
       <aside class="workspace-sidebar">
         <section class="sidebar-brand">
-          <p class="panel-kicker">Pas studio</p>
-          <h1>Teacher workspace</h1>
-          <p>Reopen your latest walkthroughs, export polished lessons, and keep one teaching flow in focus.</p>
+          <p class="panel-kicker">算法演示工作室</p>
+          <h1>教师工作台</h1>
+          <p>恢复最近的讲解任务，导出完整课程视频，专注完成一条教学流程。</p>
         </section>
 
         <button class="primary-button sidebar-primary-action" data-new-walkthrough-button type="button" @click="openNewWalkthrough">
-          New walkthrough
+          新建讲解
         </button>
 
         <section class="sidebar-section">
-          <p class="panel-kicker">Recent generations</p>
-          <p v-if="recentGenerationTasks.length === 0" class="sidebar-empty">No recent generations yet.</p>
+          <p class="panel-kicker">最近生成</p>
+          <p v-if="recentGenerationTasks.length === 0" class="sidebar-empty">暂无生成记录。</p>
           <button
             v-for="item in recentGenerationTasks"
             :key="`generation-${item.id}`"
@@ -33,14 +33,14 @@
             type="button"
             @click="handleSelectGeneration(item.id)"
           >
-            <strong>{{ item.detectedAlgorithm ?? item.sourcePreview }}</strong>
-            <span>{{ item.status }}</span>
+            <strong>{{ item.detectedAlgorithm ? formatAlgorithmName(item.detectedAlgorithm) : item.sourcePreview }}</strong>
+            <span>{{ formatGenerationStatus(item.status) }}</span>
           </button>
         </section>
 
         <section class="sidebar-section">
-          <p class="panel-kicker">Recent exports</p>
-          <p v-if="recentExportTasks.length === 0" class="sidebar-empty">No recent exports yet.</p>
+          <p class="panel-kicker">最近导出</p>
+          <p v-if="recentExportTasks.length === 0" class="sidebar-empty">暂无导出记录。</p>
           <button
             v-for="item in recentExportTasks"
             :key="`export-${item.id}`"
@@ -50,22 +50,22 @@
             type="button"
             @click="handleSelectExport(item.id)"
           >
-            <strong>{{ item.detectedAlgorithm ? `${item.detectedAlgorithm} export` : `Export #${item.id}` }}</strong>
-            <span>{{ item.status }}</span>
+            <strong>{{ item.detectedAlgorithm ? `${formatAlgorithmName(item.detectedAlgorithm)} 导出` : `导出 #${item.id}` }}</strong>
+            <span>{{ formatExportStatus(item.status) }}</span>
           </button>
         </section>
 
         <section class="sidebar-footer">
           <strong>{{ currentUser?.username }}</strong>
-          <span>Credits: {{ currentUser?.creditsBalance ?? 0 }}</span>
-          <button type="button" @click="handleLogout">Logout</button>
+          <span>可用额度：{{ currentUser?.creditsBalance ?? 0 }}</span>
+          <button type="button" @click="handleLogout">退出登录</button>
         </section>
       </aside>
 
       <section class="workspace-main">
         <section class="workspace-hero">
           <div>
-            <p class="panel-kicker">Teaching workspace</p>
+            <p class="panel-kicker">智能教学工作台</p>
             <h2>{{ workspaceHeadline }}</h2>
             <p class="workspace-copy">{{ workspaceDescription }}</p>
           </div>
@@ -87,7 +87,7 @@
         <section v-else-if="currentUser && task && (viewState === 'generated' || viewState === 'exporting' || viewState === 'exported')" class="player-layout">
           <TaskSummaryCard :task="task" :export-busy="exportBusy || viewState === 'exporting'" @export="handleExport" />
           <div class="player-actions">
-            <button class="secondary-button" data-start-over-button type="button" @click="startOver">Submit new code</button>
+            <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新提交代码</button>
           </div>
           <VisualizationStage :step="currentStep" />
           <ExplanationPanel :step="currentStep" />
@@ -106,7 +106,7 @@
 
         <GenerationStatusCard v-else-if="currentUser && task" :task="task">
           <template #actions>
-            <button class="secondary-button" data-start-over-button type="button" @click="startOver">Start over</button>
+            <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
           </template>
         </GenerationStatusCard>
 
@@ -123,6 +123,7 @@ import {
   clearStoredToken,
   createExportTask,
   createGenerationTask,
+  getStoredToken,
   getExportTask,
   getGenerationTask,
   getRecentExportTasks,
@@ -184,7 +185,7 @@ let generationPollHandle: ReturnType<typeof setInterval> | null = null
 let playbackHandle: ReturnType<typeof setInterval> | null = null
 
 const currentStep = computed(() => task.value?.visualizationPayload?.steps[activeIndex.value] ?? {
-  title: 'No step',
+  title: '暂无步骤',
   narration: '',
   arrayState: [],
   activeIndices: [],
@@ -227,75 +228,59 @@ const bannerMessage = computed(() => exportErrorMessage.value || activityErrorMe
 
 const workspaceHeadline = computed(() => {
   if (!task.value) {
-    return 'Pick a recent walkthrough or start a fresh one.'
+    return '选择历史讲解，或开始新的教学演示。'
   }
 
-  if (exportTask.value?.status === 'COMPLETED') {
-    return 'Current walkthrough'
-  }
-
-  if (exportTask.value) {
-    return 'Current walkthrough'
-  }
-
-  if (task.value.status === 'COMPLETED') {
-    return 'Current walkthrough'
-  }
-
-  if (task.value.status === 'FAILED') {
-    return 'Current walkthrough'
-  }
-
-  return 'Current walkthrough'
+  return '当前讲解'
 })
 
 const workspaceDescription = computed(() => {
   if (!task.value) {
-    return 'Choose a recent item from the sidebar or begin a new walkthrough to keep your teaching flow moving.'
+    return '从左侧选择最近记录，或新建一次算法讲解，继续推进你的备课流程。'
   }
 
   if (task.value.status === 'FAILED') {
-    return task.value.errorMessage ?? 'This walkthrough needs attention before it can be used in class.'
+    return task.value.errorMessage ?? '这次讲解生成失败，请调整代码后重试。'
   }
 
   if (exportTask.value?.status === 'COMPLETED') {
-    return 'Your walkthrough is ready for playback, and the latest export is available for download.'
+    return '讲解已可播放，最新导出视频也已准备好下载。'
   }
 
   if (exportTask.value) {
-    return 'Keep reviewing the walkthrough while Pas finishes the export in the background.'
+    return '你可以继续查看讲解，系统会在后台完成视频导出。'
   }
 
   if (task.value.summary) {
     return task.value.summary
   }
 
-  return 'Keep this walkthrough in focus while you review each teaching step.'
+  return '逐步查看讲解内容，确认每个教学步骤是否清晰。'
 })
 
 const workspaceStatus = computed(() => {
   if (!task.value) {
-    return 'Ready for a new lesson'
+    return '准备新课程'
   }
 
   if (exportTask.value?.status === 'COMPLETED') {
-    return 'Export ready'
+    return '导出已完成'
   }
 
   if (exportTask.value) {
-    return `Export ${exportTask.value.status.toLowerCase()}`
+    return `导出${formatExportStatus(exportTask.value.status)}`
   }
 
-  return `Task ${task.value.status.toLowerCase()}`
+  return `任务${formatGenerationStatus(task.value.status)}`
 })
 
 const workspaceSecondaryMeta = computed(() => {
   if (!task.value) {
-    return selectedHistoryKind.value === 'new' ? 'Warm, guided, classroom-first workspace' : null
+    return selectedHistoryKind.value === 'new' ? '面向课堂的算法讲解工作台' : null
   }
 
   if (task.value.detectedAlgorithm) {
-    return task.value.detectedAlgorithm.replaceAll('_', ' ')
+    return formatAlgorithmName(task.value.detectedAlgorithm)
   }
 
   return task.value.language.toUpperCase()
@@ -303,6 +288,57 @@ const workspaceSecondaryMeta = computed(() => {
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
+}
+
+function formatGenerationStatus(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return '排队中'
+    case 'ANALYZING':
+      return '分析中'
+    case 'COMPLETED':
+      return '已完成'
+    case 'FAILED':
+      return '失败'
+    case 'EXPORTING':
+      return '导出中'
+    default:
+      return status
+  }
+}
+
+function formatExportStatus(status: string) {
+  switch (status) {
+    case 'PENDING':
+      return '排队中'
+    case 'PROCESSING':
+      return '处理中'
+    case 'COMPLETED':
+      return '已完成'
+    case 'FAILED':
+      return '失败'
+    default:
+      return status
+  }
+}
+
+function formatAlgorithmName(algorithm: string) {
+  switch (algorithm) {
+    case 'BUBBLE_SORT':
+      return '冒泡排序'
+    case 'SELECTION_SORT':
+      return '选择排序'
+    case 'INSERTION_SORT':
+      return '插入排序'
+    case 'QUICK_SORT':
+      return '快速排序'
+    case 'MERGE_SORT':
+      return '归并排序'
+    case 'BINARY_SEARCH':
+      return '二分查找'
+    default:
+      return algorithm.replaceAll('_', ' ')
+  }
 }
 
 function isAuthExpiredError(error: unknown) {
@@ -352,14 +388,14 @@ async function refreshRecentActivity() {
     activityErrorMessage.value = ''
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
       return
     }
-    activityErrorMessage.value = 'Unable to load recent activity.'
+    activityErrorMessage.value = '无法加载最近记录。'
   }
 }
 
-function handleAuthExpired(message = 'Login expired. Please sign in again.') {
+function handleAuthExpired(_message = '登录已过期，请重新登录。') {
   clearStoredToken()
   currentUser.value = null
   task.value = null
@@ -367,7 +403,7 @@ function handleAuthExpired(message = 'Login expired. Please sign in again.') {
   recentExportTasks.value = []
   clearHistorySelection()
   authMessage.value = ''
-  authErrorMessage.value = message
+  authErrorMessage.value = '登录已过期，请重新登录。'
   submissionErrorMessage.value = ''
   resetExportState()
   stopGenerationPolling()
@@ -420,10 +456,10 @@ async function handleSelectGeneration(taskId: number) {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
       return
     }
-    activityErrorMessage.value = getErrorMessage(error, 'Failed to load generation history item')
+    activityErrorMessage.value = getErrorMessage(error, '加载生成历史失败')
   }
 }
 
@@ -450,10 +486,10 @@ async function handleSelectExport(exportTaskId: number) {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
       return
     }
-    activityErrorMessage.value = getErrorMessage(error, 'Failed to load export history item')
+    activityErrorMessage.value = getErrorMessage(error, '加载导出历史失败')
   }
 }
 
@@ -481,10 +517,10 @@ async function handleSubmit(nextSourceCode: string) {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
       return
     }
-    submissionErrorMessage.value = getErrorMessage(error, 'Generation failed')
+    submissionErrorMessage.value = getErrorMessage(error, '生成失败')
   } finally {
     generationBusy.value = false
   }
@@ -496,9 +532,9 @@ async function handleRegister(credentials: { username: string; password: string 
   authErrorMessage.value = ''
   try {
     await register(credentials.username, credentials.password)
-    authMessage.value = 'Registration submitted. Login after it succeeds.'
+    authMessage.value = '注册成功，请登录。'
   } catch (error) {
-    authErrorMessage.value = getErrorMessage(error, 'Registration failed')
+    authErrorMessage.value = getErrorMessage(error, '注册失败')
   } finally {
     authBusy.value = false
   }
@@ -514,7 +550,7 @@ async function handleLogin(credentials: { username: string; password: string }) 
     currentUser.value = response.user
     await refreshRecentActivity()
   } catch (error) {
-    authErrorMessage.value = getErrorMessage(error, 'Login failed')
+    authErrorMessage.value = getErrorMessage(error, '登录失败')
   } finally {
     authBusy.value = false
   }
@@ -547,10 +583,10 @@ function startGenerationPolling(taskId: number) {
     } catch (error) {
       stopGenerationPolling()
       if (isAuthExpiredError(error)) {
-        handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+        handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
         return
       }
-      submissionErrorMessage.value = getErrorMessage(error, 'Generation polling failed')
+      submissionErrorMessage.value = getErrorMessage(error, '刷新生成状态失败')
     }
   }, 3000)
 }
@@ -588,10 +624,10 @@ async function handleExport() {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
       return
     }
-    exportErrorMessage.value = getErrorMessage(error, 'Export creation failed')
+    exportErrorMessage.value = getErrorMessage(error, '创建导出任务失败')
   } finally {
     exportBusy.value = false
   }
@@ -654,10 +690,10 @@ function startExportPolling(exportTaskId: number) {
     } catch (error) {
       stopExportPolling()
       if (isAuthExpiredError(error)) {
-        handleAuthExpired(getErrorMessage(error, 'Login expired. Please sign in again.'))
+        handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
         return
       }
-      exportErrorMessage.value = getErrorMessage(error, 'Export polling failed')
+      exportErrorMessage.value = getErrorMessage(error, '刷新导出状态失败')
     }
   }, 3000)
 }
@@ -680,15 +716,19 @@ onBeforeUnmount(() => {
 })
 
 onMounted(async () => {
+  if (!getStoredToken()) {
+    return
+  }
+
   try {
     currentUser.value = await me()
     await refreshRecentActivity()
   } catch (error) {
     if (isAuthExpiredError(error)) {
       clearStoredToken()
-      authErrorMessage.value = getErrorMessage(error, 'Login expired. Please sign in again.')
+      authErrorMessage.value = '登录已过期，请重新登录。'
     } else {
-      authErrorMessage.value = 'Unable to restore your session. Please try signing in again.'
+      authErrorMessage.value = '无法恢复登录状态，请重新登录。'
     }
     currentUser.value = null
   }

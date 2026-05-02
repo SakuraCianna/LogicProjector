@@ -1,8 +1,8 @@
 <template>
   <div class="playback-controls">
-    <button data-play-toggle type="button" @click="emit('toggle-play')">{{ isPlaying ? 'Pause' : 'Play' }}</button>
-    <button type="button" @click="emit('change', Math.max(0, activeIndex - 1))">Previous</button>
-    <span>Step {{ activeIndex + 1 }} / {{ stepCount }}</span>
+    <button data-play-toggle type="button" @click="emit('toggle-play')">{{ isPlaying ? '暂停' : '播放' }}</button>
+    <button type="button" @click="emit('change', Math.max(0, activeIndex - 1))">上一步</button>
+    <span>步骤 {{ activeIndex + 1 }} / {{ stepCount }}</span>
     <input
       data-step-slider
       type="range"
@@ -21,7 +21,7 @@
       <option :value="1.5">1.5x</option>
       <option :value="2">2x</option>
     </select>
-    <button type="button" @click="emit('change', Math.min(stepCount - 1, activeIndex + 1))">Next</button>
+    <button type="button" @click="emit('change', Math.min(stepCount - 1, activeIndex + 1))">下一步</button>
   </div>
 </template>
 

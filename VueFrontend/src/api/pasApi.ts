@@ -26,7 +26,7 @@ export class ApiError extends Error {
 }
 
 export class AuthExpiredError extends ApiError {
-  constructor(message = 'Login expired. Please sign in again.') {
+  constructor(message = '登录已过期，请重新登录。') {
     super(message, 403)
     this.name = 'AuthExpiredError'
   }
@@ -77,7 +77,7 @@ export async function register(username: string, password: string): Promise<User
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ username, password }),
-  }, 'Registration failed')
+  }, '注册失败')
 }
 
 export async function login(username: string, password: string): Promise<AuthResponse> {
@@ -87,7 +87,7 @@ export async function login(username: string, password: string): Promise<AuthRes
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ username, password }),
-  }, 'Login failed')
+  }, '登录失败')
 }
 
 export async function me(): Promise<UserProfile> {
@@ -95,7 +95,7 @@ export async function me(): Promise<UserProfile> {
     headers: {
       ...authHeaders(),
     },
-  }, 'Auth check failed')
+  }, '登录状态校验失败')
 }
 
 export async function createGenerationTask(sourceCode: string): Promise<GenerationTaskResponse> {
@@ -109,7 +109,7 @@ export async function createGenerationTask(sourceCode: string): Promise<Generati
       sourceCode,
       language: 'java',
     }),
-  }, 'Generation failed')
+  }, '生成失败')
 }
 
 export async function getGenerationTask(taskId: number): Promise<GenerationTaskResponse> {
@@ -117,7 +117,7 @@ export async function getGenerationTask(taskId: number): Promise<GenerationTaskR
     headers: {
       ...authHeaders(),
     },
-  }, 'Generation polling failed')
+  }, '生成状态刷新失败')
 }
 
 export async function getRecentGenerationTasks(): Promise<GenerationTaskListItemResponse[]> {
@@ -125,7 +125,7 @@ export async function getRecentGenerationTasks(): Promise<GenerationTaskListItem
     headers: {
       ...authHeaders(),
     },
-  }, 'Recent generation loading failed')
+  }, '最近生成记录加载失败')
 }
 
 export async function createExportTask(taskId: number): Promise<CreateExportTaskResponse> {
@@ -134,7 +134,7 @@ export async function createExportTask(taskId: number): Promise<CreateExportTask
     headers: {
       ...authHeaders(),
     },
-  }, 'Export creation failed')
+  }, '导出任务创建失败')
 }
 
 export async function getExportTask(exportTaskId: number): Promise<ExportTaskResponse> {
@@ -142,7 +142,7 @@ export async function getExportTask(exportTaskId: number): Promise<ExportTaskRes
     headers: {
       ...authHeaders(),
     },
-  }, 'Export polling failed')
+  }, '导出状态刷新失败')
 }
 
 export async function getRecentExportTasks(): Promise<ExportTaskListItemResponse[]> {
@@ -150,5 +150,5 @@ export async function getRecentExportTasks(): Promise<ExportTaskListItemResponse
     headers: {
       ...authHeaders(),
     },
-  }, 'Recent export loading failed')
+  }, '最近导出记录加载失败')
 }

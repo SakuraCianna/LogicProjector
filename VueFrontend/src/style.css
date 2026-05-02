@@ -43,6 +43,11 @@ button {
   padding: 24px;
 }
 
+.app-shell-auth {
+  display: grid;
+  place-items: center;
+}
+
 .workspace-shell {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -222,6 +227,7 @@ button {
 .auth-form {
   display: grid;
   gap: 12px;
+  margin-top: 28px;
 }
 
 .auth-form input {

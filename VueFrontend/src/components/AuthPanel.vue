@@ -1,12 +1,12 @@
 <template>
   <section class="auth-panel">
-    <p class="panel-kicker">Pas account</p>
-    <h1>{{ mode === 'login' ? 'Login' : 'Register' }}</h1>
-    <p class="panel-copy">Use a username and password to access generation and export features.</p>
+    <p class="panel-kicker">账号中心</p>
+    <h1>{{ mode === 'login' ? '登录' : '注册' }}</h1>
+    <p class="panel-copy">使用账号和密码进入算法讲解生成与视频导出工作台。</p>
 
     <form class="auth-form" @submit.prevent="submit">
-      <input v-model="username" type="text" placeholder="Username" autocomplete="username">
-      <input v-model="password" type="password" placeholder="Password" autocomplete="current-password">
+      <input v-model="username" type="text" placeholder="用户名" autocomplete="username">
+      <input v-model="password" type="password" placeholder="密码" autocomplete="current-password">
       <button class="primary-button" type="submit" :disabled="busy">{{ submitLabel }}</button>
     </form>
 
@@ -14,7 +14,7 @@
     <p v-if="errorMessage" class="auth-message auth-error">{{ errorMessage }}</p>
 
     <button class="auth-toggle" type="button" @click="toggleMode">
-      {{ mode === 'login' ? 'Need an account? Register' : 'Already registered? Login' }}
+      {{ mode === 'login' ? '还没有账号？去注册' : '已有账号？去登录' }}
     </button>
   </section>
 </template>
@@ -43,10 +43,10 @@ const password = ref('')
 
 const submitLabel = computed(() => {
   if (props.busy) {
-    return 'Working...'
+    return '处理中...'
   }
 
-  return mode.value === 'login' ? 'Login' : 'Register'
+  return mode.value === 'login' ? '登录' : '注册'
 })
 
 function submit() {

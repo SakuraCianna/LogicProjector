@@ -1,6 +1,6 @@
 <template>
   <section class="explanation-panel">
-    <p class="panel-kicker">Current step</p>
+    <p class="panel-kicker">当前步骤</p>
     <h3>{{ step.title }}</h3>
     <p>{{ step.narration }}</p>
   </section>

@@ -1,14 +1,14 @@
 <template>
   <section class="export-status-card">
-    <p class="panel-kicker">Export status</p>
-    <h3>{{ exportTask.status }}</h3>
+    <p class="panel-kicker">导出状态</p>
+    <h3>{{ statusLabel }}</h3>
     <p>{{ statusCopy }}</p>
-    <p>Progress: {{ exportTask.progress }}%</p>
-    <p>Frozen credits: {{ exportTask.creditsFrozen ?? 0 }}</p>
-    <p v-if="exportTask.creditsCharged !== null">Charged credits: {{ exportTask.creditsCharged }}</p>
+    <p>进度：{{ exportTask.progress }}%</p>
+    <p>冻结额度：{{ exportTask.creditsFrozen ?? 0 }}</p>
+    <p v-if="exportTask.creditsCharged !== null">实际扣费：{{ exportTask.creditsCharged }}</p>
     <p v-if="exportTask.errorMessage" class="export-error">{{ exportTask.errorMessage }}</p>
-    <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button" @click="$emit('retry')">Retry export</button>
-    <a v-if="exportTask.videoUrl" :href="exportTask.videoUrl" data-download-link>Download video</a>
+    <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button" @click="$emit('retry')">重新导出</button>
+    <a v-if="exportTask.videoUrl" :href="exportTask.videoUrl" data-download-link>下载视频</a>
   </section>
 </template>
 
@@ -27,13 +27,28 @@ defineEmits<{
 
 const statusCopy = computed(() => {
   if (props.exportTask.status === 'COMPLETED') {
-    return 'Video export is ready. Download the result below.'
+    return '视频已导出完成，可以在下方下载。'
   }
 
   if (props.exportTask.status === 'FAILED') {
-    return 'Export failed, but your generated walkthrough is still available.'
+    return '导出失败，但已生成的讲解仍可继续查看。'
   }
 
-  return 'Export is running. You can stay on this page while Pas finishes the video.'
+  return '视频正在导出，你可以留在当前页面等待完成。'
+})
+
+const statusLabel = computed(() => {
+  switch (props.exportTask.status) {
+    case 'PENDING':
+      return '排队中'
+    case 'PROCESSING':
+      return '处理中'
+    case 'COMPLETED':
+      return '已完成'
+    case 'FAILED':
+      return '失败'
+    default:
+      return props.exportTask.status
+  }
 })
 </script>

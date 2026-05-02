@@ -3,6 +3,7 @@ package com.LogicProjector.auth;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,7 +40,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public UserProfileResponse me(Authentication authentication) {
-        return authService.me((AuthenticatedUser) authentication.getPrincipal());
+        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+        }
+        return authService.me(user);
     }
 
     @ExceptionHandler(AuthException.class)

@@ -1,7 +1,7 @@
 <template>
   <section class="visualization-stage">
     <header class="stage-header">
-      <p class="stage-kicker">Data structure state</p>
+      <p class="stage-kicker">数据结构状态</p>
       <h2>{{ step.title }}</h2>
     </header>
 

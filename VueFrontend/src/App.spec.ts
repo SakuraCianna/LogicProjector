@@ -12,6 +12,7 @@ vi.mock('./api/pasApi', () => ({
   getExportTask: vi.fn(),
   getRecentGenerationTasks: vi.fn(),
   getRecentExportTasks: vi.fn(),
+  getStoredToken: vi.fn(),
   login: vi.fn(),
   me: vi.fn(),
   register: vi.fn(),
@@ -53,6 +54,7 @@ describe('App', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.useRealTimers()
+    vi.mocked(api.getStoredToken).mockReturnValue('token')
     vi.mocked(api.me).mockResolvedValue(mockUser)
     vi.mocked(api.getRecentGenerationTasks).mockResolvedValue([])
     vi.mocked(api.getRecentExportTasks).mockResolvedValue([])
@@ -64,6 +66,15 @@ describe('App', () => {
     return wrapper
   }
 
+  it('centers the login panel when unauthenticated', async () => {
+    vi.mocked(api.getStoredToken).mockReturnValue(null)
+
+    const wrapper = mount(App)
+    await flushPromises()
+
+    expect(wrapper.find('.app-shell').classes()).toContain('app-shell-auth')
+  })
+
   it('restores the logged-in user on mount', async () => {
     const wrapper = await mountAuthenticatedApp()
 
@@ -71,7 +82,7 @@ describe('App', () => {
     expect(api.getRecentGenerationTasks).toHaveBeenCalledTimes(1)
     expect(api.getRecentExportTasks).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('teacher')
-    expect(wrapper.text()).toContain('Credits: 300')
+    expect(wrapper.text()).toContain('可用额度：300')
   })
 
   it('renders recent history in the sidebar after auth restore', async () => {
@@ -99,9 +110,9 @@ describe('App', () => {
 
     const wrapper = await mountAuthenticatedApp()
 
-    expect(wrapper.text()).toContain('Recent generations')
-    expect(wrapper.text()).toContain('Recent exports')
-    expect(wrapper.text()).toContain('QUICK_SORT')
+    expect(wrapper.text()).toContain('最近生成')
+    expect(wrapper.text()).toContain('最近导出')
+    expect(wrapper.find('[data-generation-history-item="42"]').text()).toContain('快速排序')
     expect(wrapper.find('[data-generation-history-item="42"]').exists()).toBe(true)
     expect(wrapper.find('[data-export-history-item="101"]').exists()).toBe(true)
   })
@@ -109,8 +120,8 @@ describe('App', () => {
   it('shows a workspace overview when no task is selected', async () => {
     const wrapper = await mountAuthenticatedApp()
 
-    expect(wrapper.text()).toContain('Teaching workspace')
-    expect(wrapper.text()).toContain('Pick a recent walkthrough or start a fresh one.')
+    expect(wrapper.text()).toContain('智能教学工作台')
+    expect(wrapper.text()).toContain('选择历史讲解，或开始新的教学演示。')
   })
 
   it('loads a recent generation from the sidebar', async () => {
@@ -135,8 +146,8 @@ describe('App', () => {
     await flushPromises()
 
     expect(api.getGenerationTask).toHaveBeenCalledWith(42)
-    expect(wrapper.text()).toContain('QUICK_SORT')
-    expect(wrapper.text()).toContain('Current walkthrough')
+    expect(wrapper.text()).toContain('快速排序')
+    expect(wrapper.text()).toContain('当前讲解')
     expect(wrapper.find('.visualization-stage').exists()).toBe(true)
   })
 
@@ -222,7 +233,7 @@ describe('App', () => {
     await flushPromises()
 
     expect(api.clearStoredToken).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Login')
+    expect(wrapper.text()).toContain('登录')
   })
 
   it('keeps stored token when auth restore fails for a non-auth reason', async () => {
@@ -232,7 +243,7 @@ describe('App', () => {
     await flushPromises()
 
     expect(api.clearStoredToken).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Unable to restore your session. Please try signing in again.')
+    expect(wrapper.text()).toContain('无法恢复登录状态，请重新登录。')
   })
 
   it('returns to login when a protected action rejects with auth expiry', async () => {
@@ -247,11 +258,12 @@ describe('App', () => {
     await flushPromises()
 
     expect(api.clearStoredToken).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Login expired. Please sign in again.')
-    expect(wrapper.text()).toContain('Login')
+    expect(wrapper.text()).toContain('登录已过期，请重新登录。')
+    expect(wrapper.text()).toContain('登录')
   })
 
   it('logs in and stores the JWT token', async () => {
+    vi.mocked(api.getStoredToken).mockReturnValue(null)
     vi.mocked(api.me).mockRejectedValue(new Error('Auth check failed'))
     vi.mocked(api.login).mockResolvedValue({
       token: 'jwt-token',
@@ -261,8 +273,8 @@ describe('App', () => {
     const wrapper = mount(App)
     await flushPromises()
 
-    await wrapper.find('input[placeholder="Username"]').setValue('teacher')
-    await wrapper.find('input[placeholder="Password"]').setValue('secret-pass')
+    await wrapper.find('input[placeholder="用户名"]').setValue('teacher')
+    await wrapper.find('input[placeholder="密码"]').setValue('secret-pass')
     await wrapper.find('.auth-form').trigger('submit')
     await flushPromises()
 
@@ -272,6 +284,7 @@ describe('App', () => {
   })
 
   it('submits registration from the auth panel', async () => {
+    vi.mocked(api.getStoredToken).mockReturnValue(null)
     vi.mocked(api.me).mockRejectedValue(new Error('Auth check failed'))
     vi.mocked(api.register).mockResolvedValue(mockUser)
 
@@ -279,13 +292,13 @@ describe('App', () => {
     await flushPromises()
 
     await wrapper.find('.auth-toggle').trigger('click')
-    await wrapper.find('input[placeholder="Username"]').setValue('new-user')
-    await wrapper.find('input[placeholder="Password"]').setValue('secret-pass')
+    await wrapper.find('input[placeholder="用户名"]').setValue('new-user')
+    await wrapper.find('input[placeholder="密码"]').setValue('secret-pass')
     await wrapper.find('.auth-form').trigger('submit')
     await flushPromises()
 
     expect(api.register).toHaveBeenCalledWith('new-user', 'secret-pass')
-    expect(wrapper.text()).toContain('Registration submitted. Login after it succeeds.')
+    expect(wrapper.text()).toContain('注册成功，请登录。')
   })
 
   it('logs out and clears the stored token', async () => {
@@ -294,7 +307,7 @@ describe('App', () => {
     await wrapper.find('.sidebar-footer button').trigger('click')
 
     expect(api.clearStoredToken).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Login')
+    expect(wrapper.text()).toContain('登录')
   })
 
   it('starts over without wiping the editor source', async () => {
@@ -341,7 +354,7 @@ describe('App', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('QUICK_SORT')
+    expect(wrapper.find('.task-summary-card h2').text()).toContain('快速排序')
     expect(wrapper.text()).toContain('Compare')
   })
 
@@ -416,8 +429,8 @@ describe('App', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Generation status')
-    expect(wrapper.text()).toContain('ANALYZING')
+    expect(wrapper.text()).toContain('生成状态')
+    expect(wrapper.text()).toContain('分析中')
     expect(wrapper.find('.visualization-stage').exists()).toBe(false)
   })
 
@@ -518,8 +531,8 @@ describe('App', () => {
     await wrapper.find('[data-export-button]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Export status')
-    expect(wrapper.text()).toContain('COMPLETED')
+    expect(wrapper.text()).toContain('导出状态')
+    expect(wrapper.text()).toContain('已完成')
     expect(wrapper.find('[data-download-link]').attributes('href')).toContain('/api/export-tasks/101/download')
   })
 
@@ -565,7 +578,7 @@ describe('App', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-export-button]').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('Export is running. You can stay on this page while Pas finishes the video.')
+    expect(wrapper.text()).toContain('视频正在导出，你可以留在当前页面等待完成。')
   })
 
   it('shows export failure message when polling returns failed', async () => {
@@ -704,12 +717,12 @@ describe('App', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Step 1 / 2')
+    expect(wrapper.text()).toContain('步骤 1 / 2')
     await wrapper.find('[data-play-toggle]').trigger('click')
     await vi.advanceTimersByTimeAsync(1800)
 
-    expect(wrapper.text()).toContain('Step 2 / 2')
-    expect(wrapper.find('[data-play-toggle]').text()).toContain('Play')
+    expect(wrapper.text()).toContain('步骤 2 / 2')
+    expect(wrapper.find('[data-play-toggle]').text()).toContain('播放')
   })
 
   it('allows scrubbing timeline and changing playback speed', async () => {
@@ -766,6 +779,6 @@ describe('App', () => {
     await wrapper.find('[data-play-toggle]').trigger('click')
     await vi.advanceTimersByTimeAsync(800)
 
-    expect(wrapper.text()).toContain('Step 3 / 3')
+    expect(wrapper.text()).toContain('步骤 3 / 3')
   })
 })

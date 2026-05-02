@@ -1,6 +1,6 @@
 <template>
   <section class="code-highlight-panel">
-    <h3>Code highlight</h3>
+    <h3>代码高亮</h3>
     <pre><code><span
       v-for="(line, index) in lines"
       :key="index"
