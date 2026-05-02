@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -33,7 +34,9 @@ class HttpMediaExportWorkerClientTest {
         server.start();
 
         String baseUrl = "http://localhost:" + server.getAddress().getPort();
-        HttpMediaExportWorkerClient client = new HttpMediaExportWorkerClient(baseUrl, Duration.ofMillis(50));
+        HttpMediaExportWorkerClient client = new HttpMediaExportWorkerClient(
+                WebClient.builder().baseUrl(baseUrl).build(),
+                Duration.ofMillis(50));
 
         assertThatThrownBy(() -> client.createExport(new MediaExportWorkerRequest(
                 1L,

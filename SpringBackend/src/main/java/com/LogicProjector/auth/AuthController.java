@@ -1,12 +1,8 @@
 package com.LogicProjector.auth;
 
-import java.util.Map;
-
 import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -40,15 +36,7 @@ public class AuthController {
 
     @GetMapping("/me")
     public UserProfileResponse me(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
-        }
+        AuthenticatedUser user = AuthenticatedUsers.current(authentication);
         return authService.me(user);
-    }
-
-    @ExceptionHandler(AuthException.class)
-    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
-    public Map<String, String> handleAuth(AuthException exception) {
-        return Map.of("message", exception.getMessage());
     }
 }

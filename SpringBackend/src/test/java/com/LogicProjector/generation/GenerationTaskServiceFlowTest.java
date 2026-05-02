@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.LogicProjector.account.UserAccount;
 import com.LogicProjector.account.UserAccountRepository;
@@ -65,13 +65,13 @@ class GenerationTaskServiceFlowTest {
     @Autowired
     private SystemLogEntryRepository systemLogEntryRepository;
 
-    @MockBean
+    @MockitoBean
     private AlgorithmRecognitionService algorithmRecognitionService;
 
-    @MockBean
+    @MockitoBean
     private AiChatClient aiChatClient;
 
-    @MockBean
+    @MockitoBean
     private TaskMessagePublisher taskMessagePublisher;
 
     private Long userId;

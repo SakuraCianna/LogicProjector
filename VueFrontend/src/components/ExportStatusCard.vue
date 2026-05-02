@@ -1,11 +1,27 @@
 <template>
   <section class="export-status-card">
-    <p class="panel-kicker">导出状态</p>
-    <h3>{{ statusLabel }}</h3>
-    <p>{{ statusCopy }}</p>
-    <p>进度：{{ exportTask.progress }}%</p>
-    <p>冻结额度：{{ exportTask.creditsFrozen ?? 0 }}</p>
-    <p v-if="exportTask.creditsCharged !== null">实际扣费：{{ exportTask.creditsCharged }}</p>
+    <div class="export-status-card__header">
+      <p class="panel-kicker">导出状态</p>
+      <h3>{{ statusLabel }}</h3>
+      <p>{{ statusCopy }}</p>
+    </div>
+    <div class="export-progress">
+      <span :style="{ width: `${exportTask.progress}%` }"></span>
+    </div>
+    <dl class="export-meta">
+      <div>
+        <dt>进度</dt>
+        <dd>{{ exportTask.progress }}%</dd>
+      </div>
+      <div>
+        <dt>冻结额度</dt>
+        <dd>{{ exportTask.creditsFrozen ?? 0 }}</dd>
+      </div>
+      <div v-if="exportTask.creditsCharged !== null">
+        <dt>实际扣费</dt>
+        <dd>{{ exportTask.creditsCharged }}</dd>
+      </div>
+    </dl>
     <p v-if="exportTask.errorMessage" class="export-error">{{ exportTask.errorMessage }}</p>
     <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button"
       @click="$emit('retry')">重新导出</button>

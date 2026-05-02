@@ -1,6 +1,9 @@
 <template>
   <section class="code-highlight-panel">
-    <h3>代码高亮</h3>
+    <header>
+      <p class="panel-kicker">源码定位</p>
+      <h3>代码高亮</h3>
+    </header>
     <pre><code><span
       v-for="(line, index) in lines"
       :key="index"

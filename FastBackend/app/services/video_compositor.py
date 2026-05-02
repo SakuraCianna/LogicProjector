@@ -1,6 +1,8 @@
 from pathlib import Path
 import subprocess
 
+from app.services.tts_service import TimelineEntry
+
 
 class VideoCompositor:
     def __init__(self, timeout_seconds: int = 180) -> None:
@@ -12,16 +14,19 @@ class VideoCompositor:
         frame_dir: Path,
         subtitle_path: Path | None,
         audio_path: Path | None,
+        timeline: list[TimelineEntry],
     ) -> tuple[Path, list[str]]:
         video_path = frame_dir.parent / f"{export_task_id}.mp4"
-        frame_pattern = frame_dir / "frame-%04d.png"
+        frame_list_path = self._write_frame_list(frame_dir, timeline)
         command = [
             "ffmpeg",
             "-y",
-            "-framerate",
-            "1/3",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
             "-i",
-            str(frame_pattern),
+            str(frame_list_path),
         ]
         if audio_path is not None:
             command.extend(["-i", str(audio_path)])
@@ -33,7 +38,7 @@ class VideoCompositor:
                 .replace("'", "\\'")
             )
             command.extend(["-vf", f"subtitles='{escaped_subtitle_path}'"])
-        command.extend(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
+        command.extend(["-vsync", "vfr", "-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p"])
         if audio_path is not None:
             command.extend(["-c:a", "aac", "-shortest"])
         else:
@@ -47,3 +52,20 @@ class VideoCompositor:
             timeout=self.timeout_seconds,
         )
         return video_path, command
+
+    def _write_frame_list(self, frame_dir: Path, timeline: list[TimelineEntry]) -> Path:
+        frame_list_path = frame_dir.parent / "frames.txt"
+        lines: list[str] = []
+        last_frame_path: Path | None = None
+        for entry in timeline:
+            frame_path = frame_dir / f"frame-{entry.step_index:04d}.png"
+            last_frame_path = frame_path
+            lines.append(f"file '{self._ffmpeg_path(frame_path)}'")
+            lines.append(f"duration {max(0.5, entry.duration_seconds):.3f}")
+        if last_frame_path is not None:
+            lines.append(f"file '{self._ffmpeg_path(last_frame_path)}'")
+        frame_list_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return frame_list_path
+
+    def _ffmpeg_path(self, path: Path) -> str:
+        return path.resolve().as_posix().replace("'", "'\\''")

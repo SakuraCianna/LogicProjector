@@ -1,163 +1,199 @@
 <template>
   <main class="app-shell" :class="{ 'app-shell-auth': viewState === 'auth' }">
-    <AuthPanel v-if="viewState === 'auth'" :busy="authBusy" :error-message="authErrorMessage"
-      :success-message="authMessage" @login="handleLogin" @register="handleRegister" />
-
-    <section v-else-if="activePage === 'player'" class="lesson-page">
-      <header class="lesson-header">
-        <div>
-          <p class="panel-kicker">代码步骤讲解</p>
-          <h1>{{ task?.detectedAlgorithm ? formatAlgorithmName(task.detectedAlgorithm) : '算法讲解' }}</h1>
-        </div>
-        <div class="lesson-actions">
-          <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新提交代码</button>
-          <button class="secondary-button" type="button" @click="openGenerationsPage">最近生成</button>
-        </div>
-      </header>
-
-      <section
-        v-if="currentUser && task && (viewState === 'generated' || viewState === 'exporting' || viewState === 'exported')"
-        class="lesson-layout">
-        <section class="lesson-main-card">
-          <VisualizationStage :step="currentStep" />
-          <PlaybackControls :step-count="task.visualizationPayload?.steps.length ?? 0" :active-index="activeIndex"
-            :is-playing="isPlaying" :playback-speed="playbackSpeed" @change="setActiveIndex($event)"
-            @change-speed="changePlaybackSpeed" @toggle-play="togglePlayback" />
-        </section>
-        <aside class="lesson-side-card">
-          <TaskSummaryCard :task="task" :export-busy="exportBusy || viewState === 'exporting'" @export="handleExport" />
-          <ExplanationPanel :step="currentStep" />
-          <ExportStatusCard v-if="exportTask" :export-task="exportTask" @retry="handleExport" />
-        </aside>
-        <CodeHighlightPanel :source-code="sourceCode" :highlighted-lines="currentStep.highlightedLines" />
-      </section>
-
-      <GenerationStatusCard v-else-if="currentUser && task" :task="task">
-        <template #actions>
-          <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
-        </template>
-      </GenerationStatusCard>
-
-      <section v-else class="empty-page-card">
-        <p class="panel-kicker">步骤讲解</p>
-        <h2>还没有可播放的讲解</h2>
-        <p>先新建一次讲解，或从最近生成中打开已有任务。</p>
-      </section>
-      <p v-if="bannerMessage" class="error-banner workspace-banner">{{ bannerMessage }}</p>
+    <section v-if="viewState === 'auth'" class="auth-page">
+      <div class="auth-page__brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg class="brand-icon" viewBox="0 0 32 32" role="img">
+            <path d="M7 9.5L16 5l9 4.5v13L16 27l-9-4.5v-13Z" />
+            <path d="M11.5 12.5L16 10l4.5 2.5v7L16 22l-4.5-2.5v-7Z" />
+            <path d="M16 10v12M11.5 12.5 16 15l4.5-2.5" />
+          </svg>
+        </span>
+        <p class="panel-kicker">Logic Projector</p>
+        <h1>把代码变成一堂清楚的课。</h1>
+        <p>粘贴 Java 算法代码，生成步骤讲解、课堂可视化和视频导出。</p>
+      </div>
+      <AuthPanel :busy="authBusy" :error-message="authErrorMessage" :success-message="authMessage" @login="handleLogin"
+        @register="handleRegister" />
     </section>
 
     <section v-else class="workspace-shell">
       <aside class="workspace-sidebar">
         <section class="sidebar-brand">
-          <p class="panel-kicker">算法演示工作室</p>
-          <h1>工作台</h1>
-          <p>从代码生成讲解，再进入独立播放页查看每一步。</p>
+          <span class="brand-mark" aria-hidden="true">
+            <svg class="brand-icon" viewBox="0 0 32 32" role="img">
+              <path d="M7 9.5L16 5l9 4.5v13L16 27l-9-4.5v-13Z" />
+              <path d="M11.5 12.5L16 10l4.5 2.5v7L16 22l-4.5-2.5v-7Z" />
+              <path d="M16 10v12M11.5 12.5 16 15l4.5-2.5" />
+            </svg>
+          </span>
+          <div>
+            <p class="panel-kicker">智能教学工作台</p>
+            <h1>Logic Projector</h1>
+          </div>
         </section>
 
         <nav class="sidebar-nav" aria-label="工作台导航">
           <button class="sidebar-nav-item" :class="{ active: activePage === 'compose' }" data-new-walkthrough-button
             type="button" @click="openNewWalkthrough">
+            <span class="nav-dot"></span>
             <strong>新建讲解</strong>
-            <span>粘贴 Java 代码</span>
+            <small>粘贴 Java 代码</small>
           </button>
           <button class="sidebar-nav-item" :class="{ active: activePage === 'generations' }" type="button"
             @click="openGenerationsPage">
+            <span class="nav-dot"></span>
             <strong>最近生成</strong>
-            <span>{{ recentGenerationTasks.length }} 条记录</span>
+            <small>{{ recentGenerationTasks.length }} 条记录</small>
           </button>
           <button class="sidebar-nav-item" :class="{ active: activePage === 'exports' }" type="button"
             @click="openExportsPage">
+            <span class="nav-dot"></span>
             <strong>最近导出</strong>
-            <span>{{ recentExportTasks.length }} 条记录</span>
+            <small>{{ recentExportTasks.length }} 条记录</small>
           </button>
           <button class="sidebar-nav-item" :class="{ active: activePage === 'recharge' }" type="button"
             @click="openRechargePage">
+            <span class="nav-dot"></span>
             <strong>充值商店</strong>
-            <span>购买额度</span>
+            <small>购买额度</small>
           </button>
         </nav>
 
         <section class="sidebar-footer">
-          <strong>{{ currentUser?.username }}</strong>
-          <span>可用额度：{{ currentUser?.creditsBalance ?? 0 }}</span>
+          <div class="user-chip">
+            <span>{{ currentUser?.username?.slice(0, 1).toUpperCase() }}</span>
+            <div>
+              <strong>{{ currentUser?.username }}</strong>
+              <small>可用额度：{{ currentUser?.creditsBalance ?? 0 }}</small>
+            </div>
+          </div>
           <button type="button" @click="handleLogout">退出登录</button>
         </section>
       </aside>
 
       <section class="workspace-main">
-        <section class="workspace-hero">
+        <header class="workspace-topbar">
           <div>
-            <p class="panel-kicker">智能教学工作台</p>
-            <h2>{{ workspaceHeadline }}</h2>
-            <p class="workspace-copy">{{ workspaceDescription }}</p>
+            <p class="panel-kicker">{{ activePage === 'player' ? '步骤讲解' : '工作台' }}</p>
+            <h2>{{ activePage === 'player' && task?.detectedAlgorithm ? formatAlgorithmName(task.detectedAlgorithm) :
+              workspaceHeadline }}</h2>
           </div>
+          <div class="topbar-actions">
+            <button v-if="activePage === 'player'" class="secondary-button" data-start-over-button type="button"
+              @click="startOver">重新提交代码</button>
+            <button class="secondary-button" type="button" @click="openGenerationsPage">最近生成</button>
+          </div>
+        </header>
+
+        <section v-if="activePage === 'player'" class="lesson-page">
+          <section
+            v-if="currentUser && task && (viewState === 'generated' || viewState === 'exporting' || viewState === 'exported')"
+            class="lesson-layout">
+            <section class="lesson-main-card">
+              <VisualizationStage :step="currentStep" />
+              <PlaybackControls :step-count="task.visualizationPayload?.steps.length ?? 0" :active-index="activeIndex"
+                :is-playing="isPlaying" :playback-speed="playbackSpeed" @change="setActiveIndex($event)"
+                @change-speed="changePlaybackSpeed" @toggle-play="togglePlayback" />
+            </section>
+            <aside class="lesson-side-card">
+              <TaskSummaryCard :task="task" :export-busy="exportBusy || viewState === 'exporting'"
+                @export="handleExport" />
+              <ExplanationPanel :step="currentStep" />
+              <ExportStatusCard v-if="exportTask" :export-task="exportTask" @retry="handleExport" />
+            </aside>
+            <CodeHighlightPanel :source-code="sourceCode" :highlighted-lines="currentStep.highlightedLines" />
+          </section>
+
+          <GenerationStatusCard v-else-if="currentUser && task" :task="task">
+            <template #actions>
+              <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
+            </template>
+          </GenerationStatusCard>
+
+          <section v-else class="empty-page-card">
+            <p class="panel-kicker">步骤讲解</p>
+            <h2>还没有可播放的讲解</h2>
+            <p>先新建一次讲解，或从最近生成中打开已有任务。</p>
+          </section>
         </section>
 
-        <CodeSubmissionPanel
-          v-if="currentUser && activePage === 'compose' && (viewState === 'ready' || viewState === 'error-recoverable')"
-          v-model="sourceCode" :busy="generationBusy" :error-message="submissionErrorMessage" @submit="handleSubmit" />
-
-        <GenerationStatusCard v-else-if="currentUser && activePage === 'compose' && task" :task="task">
-          <template #actions>
-            <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
-          </template>
-        </GenerationStatusCard>
-
-        <section v-else-if="currentUser && activePage === 'generations'" class="history-page-card">
-          <div class="history-page-header">
-            <p class="panel-kicker">最近生成</p>
-            <h2>生成记录</h2>
-          </div>
-          <p v-if="recentGenerationTasks.length === 0" class="history-empty">暂无生成记录。</p>
-          <button v-for="item in recentGenerationTasks" :key="`generation-${item.id}`" class="history-list-item"
-            :data-generation-history-item="item.id" type="button" @click="handleSelectGeneration(item.id)">
-            <strong>{{ item.detectedAlgorithm ? formatAlgorithmName(item.detectedAlgorithm) : item.sourcePreview
-              }}</strong>
-            <span>{{ formatGenerationStatus(item.status) }}</span>
-            <small>{{ item.updatedAt }}</small>
-          </button>
-        </section>
-
-        <section v-else-if="currentUser && activePage === 'exports'" class="history-page-card">
-          <div class="history-page-header">
-            <p class="panel-kicker">最近导出</p>
-            <h2>导出记录</h2>
-          </div>
-          <p v-if="recentExportTasks.length === 0" class="history-empty">暂无导出记录。</p>
-          <button v-for="item in recentExportTasks" :key="`export-${item.id}`" class="history-list-item"
-            :data-export-history-item="item.id" type="button" @click="handleSelectExport(item.id)">
-            <strong>{{ item.detectedAlgorithm ? `${formatAlgorithmName(item.detectedAlgorithm)} 导出` : `导出 #${item.id}`
-              }}</strong>
-            <span>{{ formatExportStatus(item.status) }}</span>
-            <small>{{ item.updatedAt }}</small>
-          </button>
-        </section>
-
-        <section v-else-if="currentUser && activePage === 'recharge'" class="recharge-page-card">
-          <div class="history-page-header">
-            <p class="panel-kicker">充值商店</p>
-            <h2>购买额度</h2>
-            <p>当前余额：{{ currentUser.creditsBalance }}</p>
-          </div>
-          <div class="recharge-package-grid">
-            <article v-for="item in rechargePackages" :key="item.code" class="recharge-package-card">
-              <strong>{{ item.name }}</strong>
-              <span>{{ item.credits }} 额度</span>
-              <small>{{ item.description }}</small>
-              <b>￥{{ (item.amountCents / 100).toFixed(2) }}</b>
-              <button class="primary-button" type="button" :disabled="rechargeBusy"
-                @click="handleRecharge(item.code)">模拟支付</button>
-            </article>
-          </div>
-          <div class="recharge-orders">
-            <h3>最近充值</h3>
-            <p v-if="rechargeOrders.length === 0" class="history-empty">暂无充值记录。</p>
-            <div v-for="order in rechargeOrders" :key="order.id" class="recharge-order-row">
-              <span>{{ order.packageName }}</span>
-              <span>{{ order.credits }} 额度</span>
-              <span>{{ formatRechargeStatus(order.status) }}</span>
+        <section v-else class="workspace-page">
+          <section class="workspace-hero">
+            <div>
+              <p class="panel-kicker">智能教学工作台</p>
+              <h2>{{ workspaceHeadline }}</h2>
+              <p class="workspace-copy">{{ workspaceDescription }}</p>
             </div>
-          </div>
+          </section>
+
+          <CodeSubmissionPanel
+            v-if="currentUser && activePage === 'compose' && (viewState === 'ready' || viewState === 'error-recoverable')"
+            v-model="sourceCode" :busy="generationBusy" :error-message="submissionErrorMessage"
+            @submit="handleSubmit" />
+
+          <GenerationStatusCard v-else-if="currentUser && activePage === 'compose' && task" :task="task">
+            <template #actions>
+              <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
+            </template>
+          </GenerationStatusCard>
+
+          <section v-else-if="currentUser && activePage === 'generations'" class="history-page-card">
+            <div class="history-page-header">
+              <p class="panel-kicker">最近生成</p>
+              <h2>生成记录</h2>
+            </div>
+            <p v-if="recentGenerationTasks.length === 0" class="history-empty">暂无生成记录。</p>
+            <button v-for="item in recentGenerationTasks" :key="`generation-${item.id}`" class="history-list-item"
+              :data-generation-history-item="item.id" type="button" @click="handleSelectGeneration(item.id)">
+              <strong>{{ item.detectedAlgorithm ? formatAlgorithmName(item.detectedAlgorithm) : item.sourcePreview
+                }}</strong>
+              <span>{{ formatGenerationStatus(item.status) }}</span>
+              <small>{{ item.updatedAt }}</small>
+            </button>
+          </section>
+
+          <section v-else-if="currentUser && activePage === 'exports'" class="history-page-card">
+            <div class="history-page-header">
+              <p class="panel-kicker">最近导出</p>
+              <h2>导出记录</h2>
+            </div>
+            <p v-if="recentExportTasks.length === 0" class="history-empty">暂无导出记录。</p>
+            <button v-for="item in recentExportTasks" :key="`export-${item.id}`" class="history-list-item"
+              :data-export-history-item="item.id" type="button" @click="handleSelectExport(item.id)">
+              <strong>{{ item.detectedAlgorithm ? `${formatAlgorithmName(item.detectedAlgorithm)} 导出` : `导出 #${item.id}`
+                }}</strong>
+              <span>{{ formatExportStatus(item.status) }}</span>
+              <small>{{ item.updatedAt }}</small>
+            </button>
+          </section>
+
+          <section v-else-if="currentUser && activePage === 'recharge'" class="recharge-page-card">
+            <div class="history-page-header">
+              <p class="panel-kicker">充值商店</p>
+              <h2>购买额度</h2>
+              <p>当前余额：{{ currentUser.creditsBalance }}</p>
+            </div>
+            <div class="recharge-package-grid">
+              <article v-for="item in rechargePackages" :key="item.code" class="recharge-package-card">
+                <strong>{{ item.name }}</strong>
+                <span>{{ item.credits }} 额度</span>
+                <small>{{ item.description }}</small>
+                <b>￥{{ (item.amountCents / 100).toFixed(2) }}</b>
+                <button class="primary-button" type="button" :disabled="rechargeBusy"
+                  @click="handleRecharge(item.code)">模拟支付</button>
+              </article>
+            </div>
+            <div class="recharge-orders">
+              <h3>最近充值</h3>
+              <p v-if="rechargeOrders.length === 0" class="history-empty">暂无充值记录。</p>
+              <div v-for="order in rechargeOrders" :key="order.id" class="recharge-order-row">
+                <span>{{ order.packageName }}</span>
+                <span>{{ order.credits }} 额度</span>
+                <span>{{ formatRechargeStatus(order.status) }}</span>
+              </div>
+            </div>
+          </section>
         </section>
 
         <p v-if="bannerMessage" class="error-banner workspace-banner">{{ bannerMessage }}</p>

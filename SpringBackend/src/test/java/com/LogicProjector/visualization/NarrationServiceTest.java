@@ -53,7 +53,7 @@ class NarrationServiceTest {
                 "class BinarySearch {}"
         );
 
-        assertThat(result.summary()).contains("halving the search range");
+        assertThat(result.summary()).contains("缩小搜索区间");
         assertThat(result.stepNarrations()).isEmpty();
     }
 

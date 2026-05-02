@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.LogicProjector.account.UserAccount;
 import com.LogicProjector.account.UserAccountRepository;
@@ -58,10 +58,10 @@ class ExportTaskServiceTest {
     @Autowired
     private SystemLogEntryRepository systemLogEntryRepository;
 
-    @MockBean
+    @MockitoBean
     private MediaExportWorkerClient workerClient;
 
-    @MockBean
+    @MockitoBean
     private TaskMessagePublisher taskMessagePublisher;
 
     @TempDir

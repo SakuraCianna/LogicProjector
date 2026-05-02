@@ -1,0 +1,95 @@
+@media (max-width: 1100px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .workspace-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sidebar-footer {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .lesson-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .code-highlight-panel {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell-auth,
+  .workspace-main,
+  .workspace-sidebar {
+    padding: 18px;
+  }
+
+  .auth-page__brand h1 {
+    font-size: clamp(2.3rem, 12vw, 3.6rem);
+  }
+
+  .workspace-topbar,
+  .submission-panel__footer,
+  .stage-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-actions,
+  .submission-panel__footer .primary-button {
+    width: 100%;
+  }
+
+  .topbar-actions button,
+  .submission-panel__footer .primary-button {
+    justify-content: center;
+  }
+
+  .sidebar-nav,
+  .panel-header,
+  .recharge-package-grid,
+  .export-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .playback-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .playback-controls input[type='range'],
+  .playback-count {
+    grid-column: 1 / -1;
+  }
+
+  .visualization-stage {
+    min-height: 420px;
+    padding: 20px;
+  }
+
+  .array-bars {
+    min-height: 280px;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .recharge-order-row,
+  .history-list-item {
+    grid-template-columns: 1fr;
+  }
+}

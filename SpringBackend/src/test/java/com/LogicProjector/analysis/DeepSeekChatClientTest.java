@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
@@ -35,7 +36,7 @@ class DeepSeekChatClientTest {
 
         String baseUrl = "http://localhost:" + server.getAddress().getPort();
         DeepSeekChatClient client = new DeepSeekChatClient(
-                baseUrl,
+                WebClient.builder().baseUrl(baseUrl).build(),
                 "deepseek-chat",
                 "test-key",
                 "DEEPSEEK_API_KEY",

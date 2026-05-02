@@ -1,17 +1,27 @@
 <template>
   <section class="auth-panel">
-    <p class="panel-kicker">账号中心</p>
-    <h1>{{ mode === 'login' ? '登录' : '注册' }}</h1>
-    <p class="panel-copy">使用账号和密码进入算法讲解生成与视频导出工作台。</p>
+    <div class="auth-panel__header">
+      <p class="panel-kicker">账号中心</p>
+      <h1>{{ mode === 'login' ? '欢迎回来' : '创建账号' }}</h1>
+      <p class="panel-copy">进入你的算法讲解空间，继续生成课堂可视化和导出视频。</p>
+    </div>
 
     <form class="auth-form" @submit.prevent="submit">
-      <input v-model="username" type="text" placeholder="用户名" autocomplete="username">
-      <input v-model="password" type="password" placeholder="密码" autocomplete="current-password">
+      <label>
+        <span>用户名</span>
+        <input v-model="username" type="text" placeholder="用户名" autocomplete="username">
+      </label>
+      <label>
+        <span>密码</span>
+        <input v-model="password" type="password" placeholder="密码" autocomplete="current-password">
+      </label>
       <button class="primary-button" type="submit" :disabled="busy">{{ submitLabel }}</button>
     </form>
 
-    <p v-if="successMessage" class="auth-message auth-success">{{ successMessage }}</p>
-    <p v-if="errorMessage" class="auth-message auth-error">{{ errorMessage }}</p>
+    <div class="auth-panel__feedback">
+      <p v-if="successMessage" class="auth-message auth-success">{{ successMessage }}</p>
+      <p v-if="errorMessage" class="auth-message auth-error">{{ errorMessage }}</p>
+    </div>
 
     <button class="auth-toggle" type="button" @click="toggleMode">
       {{ mode === 'login' ? '还没有账号？去注册' : '已有账号？去登录' }}

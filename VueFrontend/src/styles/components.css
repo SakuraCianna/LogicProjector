@@ -1,0 +1,196 @@
+.auth-panel,
+.submission-panel,
+.task-summary-card,
+.explanation-panel,
+.export-status-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  box-shadow: var(--shadow-card);
+}
+
+.auth-panel {
+  display: grid;
+  gap: 20px;
+  padding: 22px;
+}
+
+.auth-panel__header {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-panel h1 {
+  font-size: 2.2rem;
+  font-weight: 540;
+  letter-spacing: -0.06em;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-form label,
+.code-input-shell {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 540;
+}
+
+.auth-form input,
+.code-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.auth-form input {
+  height: 48px;
+  padding: 0 15px;
+}
+
+.auth-form input:focus,
+.code-input:focus {
+  border-color: var(--ink);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.auth-panel__feedback {
+  min-height: 20px;
+}
+
+.auth-message {
+  font-size: 0.9rem;
+}
+
+.auth-toggle {
+  justify-self: center;
+  background: transparent;
+}
+
+.submission-panel {
+  display: grid;
+  gap: 16px;
+  padding: clamp(18px, 4vw, 30px);
+}
+
+.panel-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.58fr);
+  gap: 22px;
+  align-items: end;
+}
+
+.panel-header h1 {
+  margin-top: 8px;
+  max-width: 640px;
+  font-size: clamp(1.8rem, 2.4vw, 2.45rem);
+  font-weight: 520;
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+}
+
+.code-input {
+  min-height: 430px;
+  resize: vertical;
+  padding: 18px;
+  font-family: "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.94rem;
+  line-height: 1.72;
+}
+
+.submission-panel__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.submission-hint {
+  color: var(--muted);
+}
+
+.task-summary-card,
+.explanation-panel,
+.export-status-card,
+.generation-status-card,
+.empty-page-card {
+  padding: 20px;
+}
+
+.task-summary-card,
+.explanation-panel,
+.export-status-card {
+  display: grid;
+  gap: 14px;
+}
+
+.task-summary-card h2,
+.explanation-panel h3,
+.export-status-card h3 {
+  margin-top: 6px;
+  font-size: 1.45rem;
+  font-weight: 540;
+  letter-spacing: -0.05em;
+}
+
+.task-summary-card p,
+.explanation-panel p,
+.export-status-card p,
+.generation-status-card p,
+.empty-page-card p {
+  color: var(--muted);
+  line-height: 1.68;
+}
+
+.export-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.export-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink);
+  transition: width 240ms ease;
+}
+
+.export-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.export-meta div {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.export-meta dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.export-meta dd {
+  margin: 4px 0 0;
+  font-weight: 620;
+}
+
+.generation-status-card slot,
+.generation-status-card .secondary-button {
+  margin-top: 8px;
+}

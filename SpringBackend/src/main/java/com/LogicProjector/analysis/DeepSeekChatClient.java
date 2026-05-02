@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.LogicProjector.http.WebClientFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -30,17 +31,18 @@ public class DeepSeekChatClient implements AiChatClient {
             @Value("${pas.ai.deepseek-api-key:}") String configuredApiKey,
             @Value("${pas.ai.api-key-env:DEEPSEEK_API_KEY}") String apiKeyEnv,
             ObjectMapper objectMapper,
+            WebClientFactory webClientFactory,
             @Value("${pas.ai.timeout-seconds:30}") long timeoutSeconds) {
-        this(baseUrl, model, configuredApiKey, apiKeyEnv, objectMapper, Duration.ofSeconds(timeoutSeconds));
+        this(webClientFactory.forBaseUrl(baseUrl), model, configuredApiKey, apiKeyEnv, objectMapper, Duration.ofSeconds(timeoutSeconds));
     }
 
-    DeepSeekChatClient(String baseUrl,
+    DeepSeekChatClient(WebClient webClient,
             String model,
             String configuredApiKey,
             String apiKeyEnv,
             ObjectMapper objectMapper,
             Duration timeout) {
-        this.webClient = WebClient.builder().baseUrl(baseUrl).build();
+        this.webClient = webClient;
         this.model = model;
         this.configuredApiKey = configuredApiKey;
         this.apiKeyEnv = apiKeyEnv;

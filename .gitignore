@@ -17,3 +17,4 @@ VueFrontend/dist/
 .classpath
 .project
 .settings/
+.factorypath

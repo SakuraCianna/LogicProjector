@@ -1,9 +1,12 @@
 <template>
   <section class="task-summary-card">
-    <p class="panel-kicker">生成结果</p>
-    <h2>{{ algorithmName }}</h2>
-    <p>{{ summaryText }}</p>
-    <button v-if="task.status === 'COMPLETED'" data-export-button type="button" :disabled="exportBusy" @click="$emit('export')">
+    <div>
+      <p class="panel-kicker">生成结果</p>
+      <h2>{{ algorithmName }}</h2>
+      <p>{{ summaryText }}</p>
+    </div>
+    <button v-if="task.status === 'COMPLETED'" class="primary-button" data-export-button type="button"
+      :disabled="exportBusy" @click="$emit('export')">
       {{ exportBusy ? '正在导出...' : '导出视频' }}
     </button>
   </section>
