@@ -3,7 +3,7 @@
     <div class="auth-panel__header">
       <p class="panel-kicker">账号中心</p>
       <h1>{{ mode === 'login' ? '欢迎回来' : '创建账号' }}</h1>
-      <p class="panel-copy">进入你的算法讲解空间，继续生成课堂可视化和导出视频。</p>
+      <p class="panel-copy">进入你的算法讲解空间，继续生成课堂可视化和导出视频</p>
     </div>
 
     <form class="auth-form" @submit.prevent="submit">
@@ -19,8 +19,8 @@
     </form>
 
     <div class="auth-panel__feedback">
-      <p v-if="successMessage" class="auth-message auth-success">{{ successMessage }}</p>
-      <p v-if="errorMessage" class="auth-message auth-error">{{ errorMessage }}</p>
+      <p v-if="displaySuccessMessage" class="auth-message auth-success">{{ displaySuccessMessage }}</p>
+      <p v-if="displayErrorMessage" class="auth-message auth-error">{{ displayErrorMessage }}</p>
     </div>
 
     <button class="auth-toggle" type="button" @click="toggleMode">
@@ -31,6 +31,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+
+import { withoutSentencePeriod } from '../utils/displayText'
 
 const props = withDefaults(defineProps<{
   busy?: boolean
@@ -53,11 +55,14 @@ const password = ref('')
 
 const submitLabel = computed(() => {
   if (props.busy) {
-    return '处理中...'
+    return '处理中'
   }
 
   return mode.value === 'login' ? '登录' : '注册'
 })
+
+const displayErrorMessage = computed(() => withoutSentencePeriod(props.errorMessage))
+const displaySuccessMessage = computed(() => withoutSentencePeriod(props.successMessage))
 
 function submit() {
   if (props.busy) {

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class AlgorithmRecognitionServiceTest {
 
-    private final AiCodeAnalysisClient aiCodeAnalysisClient = sourceCode ->
+    private final AiCodeAnalysisClient aiCodeAnalysisClient = (sourceCode, language) ->
             new RecognitionResult(DetectedAlgorithm.QUICK_SORT, 0.91, "Pivot and partition detected");
 
     private final AlgorithmRecognitionService service =
@@ -15,7 +15,7 @@ class AlgorithmRecognitionServiceTest {
 
     @Test
     void shouldAcceptSupportedAlgorithmAboveThreshold() {
-        RecognitionResult result = service.recognize("quickSort(nums, low, high);");
+        RecognitionResult result = service.recognize("quickSort(nums, low, high);", "cpp");
 
         assertThat(result.algorithm()).isEqualTo(DetectedAlgorithm.QUICK_SORT);
         assertThat(result.confidence()).isGreaterThanOrEqualTo(0.80);
@@ -24,11 +24,11 @@ class AlgorithmRecognitionServiceTest {
     @Test
     void shouldRejectUnsupportedAlgorithmBelowThreshold() {
         AlgorithmRecognitionService rejectingService = new AlgorithmRecognitionServiceImpl(
-                sourceCode -> new RecognitionResult(DetectedAlgorithm.UNKNOWN, 0.42, "No supported pattern found"),
+                (sourceCode, language) -> new RecognitionResult(DetectedAlgorithm.UNKNOWN, 0.42, "No supported pattern found"),
                 0.80
         );
 
-        assertThatThrownBy(() -> rejectingService.recognize("dp[i] = Math.max(dp[i - 1], score);") )
+        assertThatThrownBy(() -> rejectingService.recognize("dp[i] = Math.max(dp[i - 1], score);", "java") )
                 .isInstanceOf(UnsupportedAlgorithmException.class)
                 .hasMessageContaining("confidence");
     }

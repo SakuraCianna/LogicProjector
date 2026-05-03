@@ -17,10 +17,10 @@ describe("pasApi", () => {
       }),
     );
 
-    await expect(createGenerationTask("class Demo {}")).rejects.toBeInstanceOf(
+    await expect(createGenerationTask("class Demo {}", "java")).rejects.toBeInstanceOf(
       ApiError,
     );
-    await expect(createGenerationTask("class Demo {}")).rejects.toMatchObject({
+    await expect(createGenerationTask("class Demo {}", "java")).rejects.toMatchObject({
       status: 403,
       message: "Forbidden",
     });
@@ -59,5 +59,30 @@ describe("pasApi", () => {
       "/api/auth/login",
       expect.any(Object),
     );
+  });
+
+  it("sends the selected source language when creating a generation task", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 1,
+        status: "PENDING",
+        language: "cpp",
+        detectedAlgorithm: null,
+        summary: null,
+        confidenceScore: 0,
+        visualizationPayload: null,
+        errorMessage: null,
+        creditsCharged: 0,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await createGenerationTask("void quickSort(int a[], int low, int high) {}", "cpp");
+
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body)).toMatchObject({
+      sourceCode: "void quickSort(int a[], int low, int high) {}",
+      language: "cpp",
+    });
   });
 });

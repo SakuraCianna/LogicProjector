@@ -7,7 +7,7 @@
     </div>
     <button v-if="task.status === 'COMPLETED'" class="primary-button" data-export-button type="button"
       :disabled="exportBusy" @click="$emit('export')">
-      {{ exportBusy ? '正在导出...' : '导出视频' }}
+      {{ exportBusy ? '正在导出' : '导出视频' }}
     </button>
   </section>
 </template>
@@ -16,6 +16,7 @@
 import { computed } from 'vue'
 
 import type { GenerationTaskResponse } from '../types/pas'
+import { withoutSentencePeriod } from '../utils/displayText'
 
 const props = withDefaults(defineProps<{
   task: GenerationTaskResponse
@@ -38,6 +39,12 @@ const algorithmName = computed(() => {
       return '归并排序'
     case 'BINARY_SEARCH':
       return '二分查找'
+    case 'HEAP_SORT':
+      return '堆排序'
+    case 'BFS':
+      return '广度优先搜索'
+    case 'DFS':
+      return '深度优先搜索'
     case null:
     case undefined:
       return '未识别算法'
@@ -49,12 +56,12 @@ const algorithmName = computed(() => {
 const summaryText = computed(() => {
   const summary = props.task.summary ?? ''
   const mapping: Record<string, string> = {
-    'QuickSort recursively partitions the array around a pivot element to sort it.': '快速排序围绕基准值不断分区，并递归完成左右两侧排序。',
-    'Quick sort picks a pivot and partitions the array.': '快速排序选择基准值，将数组划分为较小值和较大值两部分。',
-    'Quick sort picks a pivot, partitions the array, and recursively sorts both sides.': '快速排序选择基准值完成分区，再递归排序左右两侧。',
+    'QuickSort recursively partitions the array around a pivot element to sort it.': '快速排序围绕基准值不断分区，并递归完成左右两侧排序',
+    'Quick sort picks a pivot and partitions the array.': '快速排序选择基准值，将数组划分为较小值和较大值两部分',
+    'Quick sort picks a pivot, partitions the array, and recursively sorts both sides.': '快速排序选择基准值完成分区，再递归排序左右两侧',
   }
 
-  return mapping[summary] ?? summary
+  return withoutSentencePeriod(mapping[summary] ?? summary)
 })
 
 defineEmits<{

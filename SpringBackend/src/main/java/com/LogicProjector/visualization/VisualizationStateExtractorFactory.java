@@ -16,6 +16,9 @@ public class VisualizationStateExtractorFactory {
             case BINARY_SEARCH -> SearchAndDivideExtractors.binarySearch();
             case QUICK_SORT -> SearchAndDivideExtractors.quickSort();
             case MERGE_SORT -> SearchAndDivideExtractors.mergeSort();
+            case HEAP_SORT -> SortingExtractors.heapSort();
+            case BFS -> GraphTraversalExtractors.bfs();
+            case DFS -> GraphTraversalExtractors.dfs();
             default -> throw new UnsupportedAlgorithmException("No extractor for algorithm " + algorithm);
         };
     }

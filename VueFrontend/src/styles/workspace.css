@@ -96,7 +96,6 @@
   gap: 16px;
 }
 
-.workspace-hero,
 .history-page-card,
 .recharge-page-card,
 .empty-page-card,
@@ -107,13 +106,7 @@
   box-shadow: var(--shadow-card);
 }
 
-.workspace-hero {
-  padding: clamp(24px, 3vw, 36px);
-}
-
-.workspace-hero h2,
 .history-page-header h2,
-.recharge-page-card h2,
 .empty-page-card h2,
 .generation-status-card h2 {
   margin-top: 8px;
@@ -124,9 +117,13 @@
   letter-spacing: -0.045em;
 }
 
-.workspace-copy {
-  max-width: 680px;
-  margin-top: 18px;
+.recharge-page-card h2 {
+  margin-top: 8px;
+  max-width: 980px;
+  font-size: clamp(1.65rem, 2.1vw, 2.2rem);
+  font-weight: 520;
+  line-height: 1.14;
+  letter-spacing: 0.06em;
 }
 
 .history-page-card,
@@ -136,6 +133,10 @@
   display: grid;
   gap: 12px;
   padding: 22px;
+}
+
+.recharge-page-card .history-page-header p:not(.panel-kicker) {
+  margin-top: 12px;
 }
 
 .history-list-item {
@@ -203,9 +204,13 @@
 
 .recharge-order-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 14px;
   padding: 12px 0;
   border-top: 1px solid var(--line);
   color: var(--muted);
+}
+
+.recharge-order-time {
+  color: var(--faint);
 }

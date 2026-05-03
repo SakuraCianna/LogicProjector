@@ -16,8 +16,8 @@ public class AlgorithmRecognitionServiceImpl implements AlgorithmRecognitionServ
     }
 
     @Override
-    public RecognitionResult recognize(String sourceCode) {
-        RecognitionResult result = aiCodeAnalysisClient.analyze(sourceCode);
+    public RecognitionResult recognize(String sourceCode, String language) {
+        RecognitionResult result = aiCodeAnalysisClient.analyze(sourceCode, language);
         if (result.algorithm() == DetectedAlgorithm.UNKNOWN || result.confidence() < confidenceThreshold) {
             throw new UnsupportedAlgorithmException(
                     "Unsupported algorithm or low confidence: " + result.confidence());

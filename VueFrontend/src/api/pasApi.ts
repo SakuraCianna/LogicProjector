@@ -28,7 +28,7 @@ export class ApiError extends Error {
 }
 
 export class AuthExpiredError extends ApiError {
-  constructor(message = "登录已过期，请重新登录。") {
+  constructor(message = "登录已过期，请重新登录") {
     super(message, 401);
     this.name = "AuthExpiredError";
   }
@@ -127,6 +127,7 @@ export async function me(): Promise<UserProfile> {
 
 export async function createGenerationTask(
   sourceCode: string,
+  language = "java",
 ): Promise<GenerationTaskResponse> {
   return requestJson<GenerationTaskResponse>(
     apiUrl("/api/generation-tasks"),
@@ -138,7 +139,7 @@ export async function createGenerationTask(
       },
       body: JSON.stringify({
         sourceCode,
-        language: "java",
+        language,
       }),
     },
     "生成失败",

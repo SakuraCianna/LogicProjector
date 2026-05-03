@@ -4,7 +4,7 @@
     <h2>{{ statusLabel }}</h2>
     <p>{{ statusCopy }}</p>
     <slot name="actions" />
-    <p v-if="task.errorMessage" class="generation-error">{{ task.errorMessage }}</p>
+    <p v-if="displayErrorMessage" class="generation-error">{{ displayErrorMessage }}</p>
   </section>
 </template>
 
@@ -12,21 +12,24 @@
 import { computed } from 'vue'
 
 import type { GenerationTaskResponse } from '../types/pas'
+import { withoutSentencePeriod } from '../utils/displayText'
 
 const props = defineProps<{
   task: GenerationTaskResponse
 }>()
 
+const displayErrorMessage = computed(() => withoutSentencePeriod(props.task.errorMessage))
+
 const statusCopy = computed(() => {
   switch (props.task.status) {
     case 'PENDING':
-      return '讲解任务已进入队列，正在等待后台处理。'
+      return '讲解任务已进入队列，正在等待后台处理'
     case 'ANALYZING':
-      return '系统正在识别算法并准备讲解流程。'
+      return '系统正在识别算法并准备讲解流程'
     case 'FAILED':
-      return '生成失败，暂时无法创建讲解流程。'
+      return '生成失败，暂时无法创建讲解流程'
     default:
-      return '系统正在处理你的请求。'
+      return '系统正在处理你的请求'
   }
 })
 

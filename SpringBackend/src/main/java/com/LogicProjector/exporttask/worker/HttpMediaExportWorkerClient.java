@@ -18,7 +18,7 @@ public class HttpMediaExportWorkerClient implements MediaExportWorkerClient {
     @Autowired
     public HttpMediaExportWorkerClient(@Value("${pas.export.worker-base-url}") String workerBaseUrl,
             WebClientFactory webClientFactory,
-            @Value("${pas.export.worker-timeout-seconds:30}") long timeoutSeconds) {
+            @Value("${pas.export.worker-timeout-seconds:300}") long timeoutSeconds) {
         this(webClientFactory.forBaseUrl(workerBaseUrl), Duration.ofSeconds(timeoutSeconds));
     }
 

@@ -24,6 +24,46 @@ class VisualizationStateExtractorTest {
     }
 
     @Test
+    void shouldHighlightBubbleSortLinesFromSubmittedSource() {
+        VisualizationPayload payload = SortingExtractors.bubbleSort().extract(
+                "bubbleSort",
+                List.of(4, 1),
+                """
+                public class BubbleSort {
+                    public static void sort(int[] array) {
+                        if (array == null || array.length < 2) {
+                            return;
+                        }
+                        int n = array.length;
+                        for (int i = 0; i < n - 1; i++) {
+                            for (int j = 0; j < n - i - 1; j++) {
+                                if (array[j] > array[j + 1]) {
+                                    int temp = array[j];
+                                    array[j] = array[j + 1];
+                                    array[j + 1] = temp;
+                                }
+                            }
+                        }
+                    }
+                }
+                """
+        );
+
+        VisualizationStep compareStep = payload.steps().stream()
+                .filter(step -> step.title().startsWith("Compare"))
+                .findFirst()
+                .orElseThrow();
+        VisualizationStep swapStep = payload.steps().stream()
+                .filter(step -> step.title().startsWith("Swap"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(compareStep.highlightedLines()).containsExactly(9);
+        assertThat(swapStep.highlightedLines()).containsExactly(10, 11, 12);
+        assertThat(swapStep.highlightedLines()).doesNotContain(4);
+    }
+
+    @Test
     void shouldBuildSelectionSortTimeline() {
         VisualizationPayload payload = SortingExtractors.selectionSort().extract(
                 "selectionSort",
@@ -72,6 +112,68 @@ class VisualizationStateExtractorTest {
     }
 
     @Test
+    void shouldHighlightQuickSortLinesFromSubmittedSource() {
+        VisualizationPayload payload = SearchAndDivideExtractors.quickSort().extract(
+                "quickSort",
+                List.of(5, 1, 4, 2),
+                """
+                public class QuickSort {
+                    public static void quickSort(int[] array, int low, int high) {
+                        if (low >= high) {
+                            return;
+                        }
+
+                        int pivotIndex = partition(array, low, high);
+                        quickSort(array, low, pivotIndex - 1);
+                        quickSort(array, pivotIndex + 1, high);
+                    }
+
+                    private static int partition(int[] array, int low, int high) {
+                        int pivot = array[high];
+                        int i = low - 1;
+
+                        for (int j = low; j < high; j++) {
+                            if (array[j] <= pivot) {
+                                i++;
+                                int temp = array[i];
+                                array[i] = array[j];
+                                array[j] = temp;
+                            }
+                        }
+
+                        int temp = array[i + 1];
+                        array[i + 1] = array[high];
+                        array[high] = temp;
+                        return i + 1;
+                    }
+                }
+                """
+        );
+
+        VisualizationStep pivotStep = payload.steps().stream()
+                .filter(step -> step.title().equals("Choose pivot"))
+                .findFirst()
+                .orElseThrow();
+        VisualizationStep compareStep = payload.steps().stream()
+                .filter(step -> step.title().equals("Compare to pivot"))
+                .findFirst()
+                .orElseThrow();
+        VisualizationStep moveStep = payload.steps().stream()
+                .filter(step -> step.title().equals("Move left of pivot"))
+                .findFirst()
+                .orElseThrow();
+        VisualizationStep placeStep = payload.steps().stream()
+                .filter(step -> step.title().equals("Place pivot"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(pivotStep.highlightedLines()).containsExactly(13);
+        assertThat(compareStep.highlightedLines()).containsExactly(16, 17);
+        assertThat(moveStep.highlightedLines()).containsExactly(18, 19, 20, 21);
+        assertThat(placeStep.highlightedLines()).containsExactly(25, 26, 27, 28);
+    }
+
+    @Test
     void shouldBuildMergeSortTimeline() {
         VisualizationPayload payload = SearchAndDivideExtractors.mergeSort().extract(
                 "mergeSort",
@@ -81,5 +183,28 @@ class VisualizationStateExtractorTest {
 
         assertThat(payload.steps()).isNotEmpty();
         assertThat(payload.steps().get(payload.steps().size() - 1).arrayState()).containsExactly(1, 2, 4, 5);
+    }
+
+    @Test
+    void shouldBuildHeapSortTimeline() {
+        VisualizationPayload payload = SortingExtractors.heapSort().extract(
+                "heapSort",
+                List.of(4, 10, 3, 5, 1),
+                "void heapSort(int arr[], int n) { heapify(arr, n, i); }"
+        );
+
+        assertThat(payload.steps()).isNotEmpty();
+        assertThat(payload.steps().get(payload.steps().size() - 1).arrayState()).containsExactly(1, 3, 4, 5, 10);
+    }
+
+    @Test
+    void shouldBuildGraphTraversalTimelines() {
+        VisualizationPayload bfs = GraphTraversalExtractors.bfs().extract("BFS", List.of(0, 1, 2, 3, 4), "queue<int> q;");
+        VisualizationPayload dfs = GraphTraversalExtractors.dfs().extract("DFS", List.of(0, 1, 2, 3, 4), "void dfs(int node) {}");
+
+        assertThat(bfs.steps()).isNotEmpty();
+        assertThat(dfs.steps()).isNotEmpty();
+        assertThat(bfs.steps().get(0).activeIndices()).containsExactly(0);
+        assertThat(dfs.steps().get(0).activeIndices()).containsExactly(0);
     }
 }

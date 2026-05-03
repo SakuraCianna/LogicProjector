@@ -22,14 +22,14 @@
         <dd>{{ exportTask.creditsCharged }}</dd>
       </div>
     </dl>
-    <p v-if="exportTask.errorMessage" class="export-error">{{ exportTask.errorMessage }}</p>
+    <p v-if="displayExportError" class="export-error">{{ displayExportError }}</p>
     <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button"
       @click="$emit('retry')">重新导出</button>
     <button v-if="exportTask.videoUrl" class="primary-button" type="button" :disabled="downloadBusy"
       data-download-button @click="handleDownload">
-      {{ downloadBusy ? '下载中...' : '下载视频' }}
+      {{ downloadBusy ? '下载中' : '下载视频' }}
     </button>
-    <p v-if="downloadError" class="download-error">{{ downloadError }}</p>
+    <p v-if="displayDownloadError" class="download-error">{{ displayDownloadError }}</p>
   </section>
 </template>
 
@@ -38,6 +38,7 @@ import { computed, ref } from 'vue'
 
 import { downloadExportVideo } from '../api/pasApi'
 import type { ExportTaskResponse } from '../types/pas'
+import { withoutSentencePeriod } from '../utils/displayText'
 
 const props = defineProps<{
   exportTask: ExportTaskResponse
@@ -49,6 +50,9 @@ defineEmits<{
 
 const downloadBusy = ref(false)
 const downloadError = ref('')
+
+const displayExportError = computed(() => withoutSentencePeriod(props.exportTask.errorMessage))
+const displayDownloadError = computed(() => withoutSentencePeriod(downloadError.value))
 
 async function handleDownload() {
   if (!props.exportTask.videoUrl) return
@@ -66,14 +70,14 @@ async function handleDownload() {
 
 const statusCopy = computed(() => {
   if (props.exportTask.status === 'COMPLETED') {
-    return '视频已导出完成，可以在下方下载。'
+    return '视频已导出完成，可以在下方下载'
   }
 
   if (props.exportTask.status === 'FAILED') {
-    return '导出失败，但已生成的讲解仍可继续查看。'
+    return '导出失败，但已生成的讲解仍可继续查看'
   }
 
-  return '视频正在导出，你可以留在当前页面等待完成。'
+  return '视频正在导出，你可以留在当前页面等待完成'
 })
 
 const statusLabel = computed(() => {

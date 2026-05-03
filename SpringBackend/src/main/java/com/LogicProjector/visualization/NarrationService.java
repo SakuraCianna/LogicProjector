@@ -48,6 +48,9 @@ public class NarrationService {
             case BUBBLE_SORT -> "冒泡排序反复比较相邻元素，把较大的值逐步交换到右侧。";
             case SELECTION_SORT -> "选择排序每轮找到剩余区间最小值，并放入已排序前缀。";
             case INSERTION_SORT -> "插入排序把每个新元素插入左侧已排序区间的正确位置。";
+            case HEAP_SORT -> "堆排序先建立最大堆，再反复把堆顶放入已排序区间。";
+            case BFS -> "广度优先搜索使用队列按层访问图中的节点。";
+            case DFS -> "深度优先搜索沿着分支不断深入，再逐步回溯。";
             default -> "算法会通过数据结构变化逐步讲解。";
         };
         return new NarrationResult(summary, List.of());

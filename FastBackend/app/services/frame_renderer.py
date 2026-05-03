@@ -67,18 +67,16 @@ class FrameRenderer:
         draw.text(self._point(1100, 56), f"{step_index}/{step_count}", fill=(255, 255, 255), font=self.font_small)
 
     def _draw_stage(self, draw: ImageDraw.ImageDraw, step: dict) -> None:
-        draw.rounded_rectangle(self._box(56, 120, 820, 520), radius=self._s(28), fill=(20, 30, 50))
+        draw.rounded_rectangle(self._box(56, 120, 730, 520), radius=self._s(28), fill=(20, 30, 50))
         draw.text(self._point(84, 148), step["title"], fill=(255, 255, 255), font=self.font_title)
         draw.text(self._point(84, 184), "Data structure view", fill=(148, 163, 184), font=self.font_small)
 
         values = step["arrayState"]
-        bar_width = max(56, int(620 / max(1, len(values))))
-        spacing = 18
-        left_start = 92
+        bar_positions = self._bar_positions(values)
         active_indices = set(step.get("activeIndices", []))
 
-        for bar_index, value in enumerate(values):
-            left = left_start + bar_index * (bar_width + spacing)
+        for bar_index, (left, bar_width) in enumerate(bar_positions):
+            value = values[bar_index]
             top = 450 - value * 22
             right = left + bar_width
             active = bar_index in active_indices
@@ -87,29 +85,59 @@ class FrameRenderer:
             draw.text(self._point(left + 18, top - 28), str(value), fill=(255, 255, 255), font=self.font_small)
 
     def _draw_explanation(self, draw: ImageDraw.ImageDraw, step: dict) -> None:
-        draw.rounded_rectangle(self._box(56, 548, 820, 664), radius=self._s(24), fill=(38, 50, 76))
+        draw.rounded_rectangle(self._box(56, 548, 730, 664), radius=self._s(24), fill=(38, 50, 76))
         draw.text(self._point(84, 574), "Narration", fill=(125, 211, 252), font=self.font_small)
-        self._draw_wrapped_text(draw, step["narration"], 84, 608, 700, self.font_regular, (226, 232, 240), 28)
+        self._draw_wrapped_text(draw, step["narration"], 84, 608, 590, self.font_regular, (226, 232, 240), 28)
 
     def _draw_code_panel(
         self, draw: ImageDraw.ImageDraw, source_code: str, highlighted_lines: list[int]
     ) -> None:
-        draw.rounded_rectangle(self._box(860, 120, 1216, 664), radius=self._s(28), fill=(26, 34, 58))
-        draw.text(self._point(888, 146), "Code focus", fill=(255, 255, 255), font=self.font_title)
-        draw.text(self._point(888, 178), "Current implementation", fill=(148, 163, 184), font=self.font_small)
+        draw.rounded_rectangle(self._box(760, 120, 1216, 664), radius=self._s(28), fill=(26, 34, 58))
+        draw.text(self._point(788, 146), "Code focus", fill=(255, 255, 255), font=self.font_title)
+        draw.text(self._point(788, 178), "Current implementation", fill=(148, 163, 184), font=self.font_small)
 
-        lines = source_code.splitlines()[:12]
+        lines = self._visible_code_lines(source_code, highlighted_lines)
         line_y = 226
-        for index, line in enumerate(lines, start=1):
+        for index, line in lines:
             if index in highlighted_lines:
                 draw.rounded_rectangle(
-                    self._box(882, line_y - 4, 1194, line_y + 24), radius=self._s(10), fill=(14, 165, 233)
+                    self._box(782, line_y - 4, 1194, line_y + 24), radius=self._s(10), fill=(14, 165, 233)
                 )
                 fill = (255, 255, 255)
             else:
                 fill = (203, 213, 225)
-            draw.text(self._point(892, line_y), f"{index:>2} {line[:34]}", fill=fill, font=self.font_code)
-            line_y += 32
+            draw.text(self._point(792, line_y), f"{index:>2}", fill=fill, font=self.font_code)
+            fitted_line = self._fit_text(draw, line, 320, self.font_code)
+            draw.text(self._point(844, line_y), fitted_line, fill=fill, font=self.font_code)
+            line_y += 28
+
+    def _bar_positions(self, values: list[int]) -> list[tuple[int, int]]:
+        spacing = 18
+        left_bound = 92
+        right_bound = 704
+        count = max(1, len(values))
+        available = right_bound - left_bound - spacing * (count - 1)
+        bar_width = max(28, min(72, int(available / count)))
+        total_width = bar_width * count + spacing * (count - 1)
+        left_start = left_bound + max(0, int((right_bound - left_bound - total_width) / 2))
+        return [(left_start + index * (bar_width + spacing), bar_width) for index in range(len(values))]
+
+    def _visible_code_lines(self, source_code: str, highlighted_lines: list[int], max_lines: int = 14) -> list[tuple[int, str]]:
+        lines = source_code.splitlines() or [""]
+        valid_highlights = sorted(line for line in highlighted_lines if 1 <= line <= len(lines))
+        first_line = valid_highlights[0] if valid_highlights else 1
+        start_line = max(1, first_line - max_lines // 2)
+        start_line = min(start_line, max(1, len(lines) - max_lines + 1))
+        end_line = min(len(lines), start_line + max_lines - 1)
+        return [(line_number, lines[line_number - 1]) for line_number in range(start_line, end_line + 1)]
+
+    def _fit_text(self, draw: ImageDraw.ImageDraw, text: str, max_width: int, font: ImageFont.ImageFont) -> str:
+        if draw.textlength(text, font=font) <= self._s(max_width):
+            return text
+        trimmed = text
+        while trimmed and draw.textlength(trimmed, font=font) > self._s(max_width):
+            trimmed = trimmed[:-1]
+        return trimmed.rstrip()
 
     def _s(self, value: int | float) -> int:
         return int(round(value * self.scale))

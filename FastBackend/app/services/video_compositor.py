@@ -38,7 +38,7 @@ class VideoCompositor:
                 .replace("'", "\\'")
             )
             command.extend(["-vf", f"subtitles='{escaped_subtitle_path}'"])
-        command.extend(["-vsync", "vfr", "-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p"])
+        command.extend(["-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p"])
         if audio_path is not None:
             command.extend(["-c:a", "aac", "-shortest"])
         else:

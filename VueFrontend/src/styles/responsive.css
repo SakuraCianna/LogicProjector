@@ -41,7 +41,7 @@
   }
 
   .auth-page__brand h1 {
-    font-size: clamp(2.3rem, 12vw, 3.6rem);
+    font-size: clamp(1.85rem, 9vw, 2.6rem);
   }
 
   .workspace-topbar,
@@ -66,6 +66,11 @@
   .recharge-package-grid,
   .export-meta {
     grid-template-columns: 1fr;
+  }
+
+  .panel-header .panel-copy {
+    justify-self: start;
+    white-space: normal;
   }
 
   .playback-controls {

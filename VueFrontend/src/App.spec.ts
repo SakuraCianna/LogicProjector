@@ -122,6 +122,9 @@ describe("App", () => {
     expect(
       wrapper.find('[data-generation-history-item="42"]').text(),
     ).toContain("快速排序");
+    expect(
+      wrapper.find('[data-generation-history-item="42"]').text(),
+    ).toContain("2026-04-22 10:01");
     expect(wrapper.find('[data-generation-history-item="42"]').exists()).toBe(
       true,
     );
@@ -129,13 +132,17 @@ describe("App", () => {
     expect(wrapper.find('[data-export-history-item="101"]').exists()).toBe(
       true,
     );
+    expect(wrapper.find('[data-export-history-item="101"]').text()).toContain(
+      "2026-04-22 10:02",
+    );
   });
 
   it("shows a workspace overview when no task is selected", async () => {
     const wrapper = await mountAuthenticatedApp();
 
     expect(wrapper.text()).toContain("智能教学工作台");
-    expect(wrapper.text()).toContain("选择历史讲解，或开始新的教学演示。");
+    expect(wrapper.text()).not.toContain("选择历史讲解，或开始新的教学演示");
+    expect(wrapper.find(".workspace-hero").exists()).toBe(false);
   });
 
   it("loads a recent generation from the sidebar", async () => {
@@ -262,7 +269,7 @@ describe("App", () => {
     await flushPromises();
 
     expect(api.clearStoredToken).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("无法恢复登录状态，请重新登录。");
+    expect(wrapper.text()).toContain("无法恢复登录状态，请重新登录");
   });
 
   it("does not log out when recharge page hits a non-auth 403 error", async () => {
@@ -281,6 +288,30 @@ describe("App", () => {
     expect(wrapper.text()).toContain("FORBIDDEN");
   });
 
+  it("shows recharge order time in the recharge history", async () => {
+    vi.mocked(api.getRecentRechargeOrders).mockResolvedValue([
+      {
+        id: 7,
+        packageCode: "studio",
+        packageName: "工作室包",
+        credits: 2000,
+        amountCents: 19900,
+        status: "PAID",
+        createdAt: "2026-04-22T10:00:00Z",
+        paidAt: "2026-04-22T10:03:04Z",
+      },
+    ]);
+
+    const wrapper = await mountAuthenticatedApp();
+    await wrapper.findAll(".sidebar-nav-item")[3].trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("工作室包");
+    expect(wrapper.text()).toContain("2026-04-22 10:03");
+    expect(wrapper.text()).toContain("2000 额度");
+    expect(wrapper.text()).toContain("已入账");
+  });
+
   it("returns to login when a protected action rejects with auth expiry", async () => {
     vi.mocked(api.createGenerationTask).mockRejectedValue(
       Object.assign(new Error("Login expired. Please sign in again."), {
@@ -295,7 +326,7 @@ describe("App", () => {
     await flushPromises();
 
     expect(api.clearStoredToken).toHaveBeenCalledTimes(1);
-    expect(wrapper.text()).toContain("登录已过期，请重新登录。");
+    expect(wrapper.text()).toContain("登录已过期，请重新登录");
     expect(wrapper.text()).toContain("登录");
   });
 
@@ -335,7 +366,7 @@ describe("App", () => {
     await flushPromises();
 
     expect(api.register).toHaveBeenCalledWith("new-user", "secret-pass");
-    expect(wrapper.text()).toContain("注册成功，请登录。");
+    expect(wrapper.text()).toContain("注册成功，请登录");
   });
 
   it("logs out and clears the stored token", async () => {
@@ -624,7 +655,7 @@ describe("App", () => {
       wrapper.find("[data-export-button]").attributes("disabled"),
     ).toBeDefined();
     expect(wrapper.text()).toContain(
-      "视频正在导出，你可以留在当前页面等待完成。",
+      "视频正在导出，你可以留在当前页面等待完成",
     );
   });
 

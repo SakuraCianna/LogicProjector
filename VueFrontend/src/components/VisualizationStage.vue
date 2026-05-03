@@ -3,7 +3,7 @@
     <header class="stage-header">
       <div>
         <p class="stage-kicker">数据结构状态</p>
-        <h2>{{ step.title }}</h2>
+        <h2>{{ withoutSentencePeriod(step.title) }}</h2>
       </div>
       <span>{{ step.arrayState.length }} items</span>
     </header>
@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import type { VisualizationStep } from '../types/pas'
+import { withoutSentencePeriod } from '../utils/displayText'
 
 defineProps<{
   step: VisualizationStep

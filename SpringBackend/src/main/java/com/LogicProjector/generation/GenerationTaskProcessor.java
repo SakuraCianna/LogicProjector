@@ -70,7 +70,7 @@ public class GenerationTaskProcessor {
         systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing started");
 
         try {
-            RecognitionResult recognition = algorithmRecognitionService.recognize(task.getSourceCode());
+            RecognitionResult recognition = algorithmRecognitionService.recognize(task.getSourceCode(), task.getLanguage());
             List<Integer> sampleInput = sampleInputFor(recognition.algorithm());
             VisualizationPayload payload = visualizationStateExtractorFactory.forAlgorithm(recognition.algorithm())
                     .extract(recognition.algorithm().name(), sampleInput, task.getSourceCode());
@@ -138,10 +138,12 @@ public class GenerationTaskProcessor {
 
     private List<Integer> sampleInputFor(DetectedAlgorithm algorithm) {
         return switch (algorithm) {
-            case BUBBLE_SORT, SELECTION_SORT, INSERTION_SORT, QUICK_SORT, MERGE_SORT ->
+            case BUBBLE_SORT, SELECTION_SORT, INSERTION_SORT, QUICK_SORT, MERGE_SORT, HEAP_SORT ->
                 List.of(5, 1, 4, 2, 8);
             case BINARY_SEARCH ->
                 List.of(1, 3, 5, 7, 9, 11);
+            case BFS, DFS ->
+                List.of(0, 1, 2, 3, 4);
             default ->
                 List.of(3, 1, 2);
         };

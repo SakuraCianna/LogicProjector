@@ -10,8 +10,8 @@
           </svg>
         </span>
         <p class="panel-kicker">Logic Projector</p>
-        <h1>把代码变成一堂清楚的课。</h1>
-        <p>粘贴 Java 算法代码，生成步骤讲解、课堂可视化和视频导出。</p>
+        <h1>把代码变成一堂清楚的课</h1>
+        <p>粘贴 Java / C / C++ 算法代码，生成步骤讲解、课堂可视化和视频导出</p>
       </div>
       <AuthPanel :busy="authBusy" :error-message="authErrorMessage" :success-message="authMessage" @login="handleLogin"
         @register="handleRegister" />
@@ -38,7 +38,7 @@
             type="button" @click="openNewWalkthrough">
             <span class="nav-dot"></span>
             <strong>新建讲解</strong>
-            <small>粘贴 Java 代码</small>
+            <small>粘贴 Java / C / C++ 代码</small>
           </button>
           <button class="sidebar-nav-item" :class="{ active: activePage === 'generations' }" type="button"
             @click="openGenerationsPage">
@@ -114,22 +114,14 @@
           <section v-else class="empty-page-card">
             <p class="panel-kicker">步骤讲解</p>
             <h2>还没有可播放的讲解</h2>
-            <p>先新建一次讲解，或从最近生成中打开已有任务。</p>
+            <p>先新建一次讲解，或从最近生成中打开已有任务</p>
           </section>
         </section>
 
         <section v-else class="workspace-page">
-          <section class="workspace-hero">
-            <div>
-              <p class="panel-kicker">智能教学工作台</p>
-              <h2>{{ workspaceHeadline }}</h2>
-              <p class="workspace-copy">{{ workspaceDescription }}</p>
-            </div>
-          </section>
-
           <CodeSubmissionPanel
             v-if="currentUser && activePage === 'compose' && (viewState === 'ready' || viewState === 'error-recoverable')"
-            v-model="sourceCode" :busy="generationBusy" :error-message="submissionErrorMessage"
+            v-model="sourceCode" v-model:language="sourceLanguage" :busy="generationBusy" :error-message="submissionErrorMessage"
             @submit="handleSubmit" />
 
           <GenerationStatusCard v-else-if="currentUser && activePage === 'compose' && task" :task="task">
@@ -143,13 +135,13 @@
               <p class="panel-kicker">最近生成</p>
               <h2>生成记录</h2>
             </div>
-            <p v-if="recentGenerationTasks.length === 0" class="history-empty">暂无生成记录。</p>
+            <p v-if="recentGenerationTasks.length === 0" class="history-empty">暂无生成记录</p>
             <button v-for="item in recentGenerationTasks" :key="`generation-${item.id}`" class="history-list-item"
               :data-generation-history-item="item.id" type="button" @click="handleSelectGeneration(item.id)">
               <strong>{{ item.detectedAlgorithm ? formatAlgorithmName(item.detectedAlgorithm) : item.sourcePreview
                 }}</strong>
               <span>{{ formatGenerationStatus(item.status) }}</span>
-              <small>{{ item.updatedAt }}</small>
+              <small>{{ formatDisplayTime(item.updatedAt) }}</small>
             </button>
           </section>
 
@@ -158,13 +150,13 @@
               <p class="panel-kicker">最近导出</p>
               <h2>导出记录</h2>
             </div>
-            <p v-if="recentExportTasks.length === 0" class="history-empty">暂无导出记录。</p>
+            <p v-if="recentExportTasks.length === 0" class="history-empty">暂无导出记录</p>
             <button v-for="item in recentExportTasks" :key="`export-${item.id}`" class="history-list-item"
               :data-export-history-item="item.id" type="button" @click="handleSelectExport(item.id)">
               <strong>{{ item.detectedAlgorithm ? `${formatAlgorithmName(item.detectedAlgorithm)} 导出` : `导出 #${item.id}`
                 }}</strong>
               <span>{{ formatExportStatus(item.status) }}</span>
-              <small>{{ item.updatedAt }}</small>
+              <small>{{ formatDisplayTime(item.updatedAt) }}</small>
             </button>
           </section>
 
@@ -178,7 +170,7 @@
               <article v-for="item in rechargePackages" :key="item.code" class="recharge-package-card">
                 <strong>{{ item.name }}</strong>
                 <span>{{ item.credits }} 额度</span>
-                <small>{{ item.description }}</small>
+                <small>{{ withoutSentencePeriod(item.description) }}</small>
                 <b>￥{{ (item.amountCents / 100).toFixed(2) }}</b>
                 <button class="primary-button" type="button" :disabled="rechargeBusy"
                   @click="handleRecharge(item.code)">模拟支付</button>
@@ -186,9 +178,10 @@
             </div>
             <div class="recharge-orders">
               <h3>最近充值</h3>
-              <p v-if="rechargeOrders.length === 0" class="history-empty">暂无充值记录。</p>
+              <p v-if="rechargeOrders.length === 0" class="history-empty">暂无充值记录</p>
               <div v-for="order in rechargeOrders" :key="order.id" class="recharge-order-row">
                 <span>{{ order.packageName }}</span>
+                <span class="recharge-order-time">{{ formatDisplayTime(order.paidAt ?? order.createdAt) }}</span>
                 <span>{{ order.credits }} 额度</span>
                 <span>{{ formatRechargeStatus(order.status) }}</span>
               </div>
@@ -242,14 +235,39 @@ import type {
   RechargePackageResponse,
   UserProfile,
 } from './types/pas'
+import { withoutSentencePeriod } from './utils/displayText'
 
 type ViewState = 'auth' | 'ready' | 'generating' | 'generated' | 'exporting' | 'exported' | 'error-recoverable'
 type WorkspacePage = 'compose' | 'player' | 'generations' | 'exports' | 'recharge'
 
 const defaultSourceCode = `public class QuickSort {
-  void sort(int[] arr, int low, int high) {
-    int pivot = arr[high];
-    partition(arr, low, high);
+  public static void quickSort(int[] array, int low, int high) {
+    if (low >= high) {
+      return;
+    }
+
+    int pivotIndex = partition(array, low, high);
+    quickSort(array, low, pivotIndex - 1);
+    quickSort(array, pivotIndex + 1, high);
+  }
+
+  private static int partition(int[] array, int low, int high) {
+    int pivot = array[high];
+    int i = low - 1;
+
+    for (int j = low; j < high; j++) {
+      if (array[j] <= pivot) {
+        i++;
+        int temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+      }
+    }
+
+    int temp = array[i + 1];
+    array[i + 1] = array[high];
+    array[high] = temp;
+    return i + 1;
   }
 }`
 
@@ -262,6 +280,7 @@ const recentExportTasks = ref<ExportTaskListItemResponse[]>([])
 const rechargePackages = ref<RechargePackageResponse[]>([])
 const rechargeOrders = ref<RechargeOrderResponse[]>([])
 const sourceCode = ref(defaultSourceCode)
+const sourceLanguage = ref('java')
 const activeIndex = ref(0)
 const playbackSpeed = ref(1)
 const isPlaying = ref(false)
@@ -324,35 +343,23 @@ const viewState = computed<ViewState>(() => {
 const bannerMessage = computed(() => exportErrorMessage.value || activityErrorMessage.value)
 
 const workspaceHeadline = computed(() => {
-  if (!task.value) {
-    return '选择历史讲解，或开始新的教学演示。'
+  if (activePage.value === 'compose') {
+    return '新建讲解'
+  }
+
+  if (activePage.value === 'generations') {
+    return '生成记录'
+  }
+
+  if (activePage.value === 'exports') {
+    return '导出记录'
+  }
+
+  if (activePage.value === 'recharge') {
+    return '购买额度'
   }
 
   return '当前讲解'
-})
-
-const workspaceDescription = computed(() => {
-  if (!task.value) {
-    return '从左侧选择最近记录，或新建一次算法讲解，继续推进你的备课流程。'
-  }
-
-  if (task.value.status === 'FAILED') {
-    return task.value.errorMessage ?? '这次讲解生成失败，请调整代码后重试。'
-  }
-
-  if (exportTask.value?.status === 'COMPLETED') {
-    return '讲解已可播放，最新导出视频也已准备好下载。'
-  }
-
-  if (exportTask.value) {
-    return '你可以继续查看讲解，系统会在后台完成视频导出。'
-  }
-
-  if (task.value.summary) {
-    return task.value.summary
-  }
-
-  return '逐步查看讲解内容，确认每个教学步骤是否清晰。'
 })
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -368,6 +375,10 @@ function formatRechargeStatus(status: string) {
     default:
       return status
   }
+}
+
+function formatDisplayTime(value: string) {
+  return value.replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/u, '')
 }
 
 function formatGenerationStatus(status: string) {
@@ -416,6 +427,12 @@ function formatAlgorithmName(algorithm: string) {
       return '归并排序'
     case 'BINARY_SEARCH':
       return '二分查找'
+    case 'HEAP_SORT':
+      return '堆排序'
+    case 'BFS':
+      return '广度优先搜索'
+    case 'DFS':
+      return '深度优先搜索'
     default:
       return algorithm.replaceAll('_', ' ')
   }
@@ -432,30 +449,30 @@ function localizeStep<T extends { title: string; narration: string }>(step: T): 
 function localizeStepText(text: string) {
   const mapping: Record<string, string> = {
     'Choose pivot': '选择基准值',
-    'Use the last value as pivot': '使用当前区间最后一个值作为基准值。',
+    'Use the last value as pivot': '使用当前区间最后一个值作为基准值',
     'Compare to pivot': '与基准值比较',
-    'Check whether the value belongs on the left side': '判断当前值是否应该放到基准值左侧。',
+    'Check whether the value belongs on the left side': '判断当前值是否应该放到基准值左侧',
     'Move left of pivot': '移动到基准值左侧',
-    'Keep smaller values before the pivot': '把较小的值保留在基准值前面。',
+    'Keep smaller values before the pivot': '把较小的值保留在基准值前面',
     'Place pivot': '放置基准值',
-    'The pivot lands in its final position': '基准值移动到本轮排序后的最终位置。',
+    'The pivot lands in its final position': '基准值移动到本轮排序后的最终位置',
     'Quick sort complete': '快速排序完成',
-    'All partitions are sorted': '所有分区都已经完成排序。',
+    'All partitions are sorted': '所有分区都已经完成排序',
     'Check middle': '检查中间位置',
-    'Focus the middle candidate': '聚焦当前区间的中间候选值。',
+    'Focus the middle candidate': '聚焦当前区间的中间候选值',
     'Split range': '拆分区间',
-    'Prepare two sorted halves for merge': '准备两个已排序子区间用于合并。',
+    'Prepare two sorted halves for merge': '准备两个已排序子区间用于合并',
     'Merge next value': '合并下一个值',
-    'Write the smaller front value back into the array': '把两个子区间前端较小的值写回数组。',
+    'Write the smaller front value back into the array': '把两个子区间前端较小的值写回数组',
     'Append remaining left': '追加左侧剩余值',
-    'Copy leftover values from the left half': '把左半区剩余的值复制回数组。',
+    'Copy leftover values from the left half': '把左半区剩余的值复制回数组',
     'Append remaining right': '追加右侧剩余值',
-    'Copy leftover values from the right half': '把右半区剩余的值复制回数组。',
+    'Copy leftover values from the right half': '把右半区剩余的值复制回数组',
     'Merge sort complete': '归并排序完成',
-    'All ranges have been merged back in order': '所有区间都已经按顺序合并完成。',
+    'All ranges have been merged back in order': '所有区间都已经按顺序合并完成',
   }
 
-  return mapping[text] ?? text
+  return withoutSentencePeriod(mapping[text] ?? text)
 }
 
 function isAuthExpiredError(error: unknown) {
@@ -505,10 +522,10 @@ async function refreshRecentActivity() {
     activityErrorMessage.value = ''
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
-    activityErrorMessage.value = '无法加载最近记录。'
+    activityErrorMessage.value = '无法加载最近记录'
   }
 }
 
@@ -523,14 +540,14 @@ async function refreshRechargeStore() {
     activityErrorMessage.value = ''
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
     activityErrorMessage.value = getErrorMessage(error, '充值商店加载失败')
   }
 }
 
-function handleAuthExpired(_message = '登录已过期，请重新登录。') {
+function handleAuthExpired(_message = '登录已过期，请重新登录') {
   clearStoredToken()
   currentUser.value = null
   task.value = null
@@ -538,7 +555,7 @@ function handleAuthExpired(_message = '登录已过期，请重新登录。') {
   recentExportTasks.value = []
   clearHistorySelection()
   authMessage.value = ''
-  authErrorMessage.value = '登录已过期，请重新登录。'
+  authErrorMessage.value = '登录已过期，请重新登录'
   submissionErrorMessage.value = ''
   resetExportState()
   stopGenerationPolling()
@@ -559,6 +576,7 @@ function openNewWalkthrough() {
   activePage.value = 'compose'
   clearHistorySelection()
   sourceCode.value = defaultSourceCode
+  sourceLanguage.value = 'java'
   task.value = null
   submissionErrorMessage.value = ''
   activityErrorMessage.value = ''
@@ -594,6 +612,7 @@ async function handleSelectGeneration(taskId: number) {
     const loadedTask = await getGenerationTask(taskId)
     task.value = loadedTask
     sourceCode.value = loadedTask.sourceCode ?? defaultSourceCode
+    sourceLanguage.value = loadedTask.language ?? sourceLanguage.value
     selectedHistoryKind.value = 'generation'
     selectedHistoryId.value = taskId
     activePage.value = loadedTask.status === 'FAILED' ? 'compose' : 'player'
@@ -609,7 +628,7 @@ async function handleSelectGeneration(taskId: number) {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
     activityErrorMessage.value = getErrorMessage(error, '加载生成历史失败')
@@ -629,6 +648,7 @@ async function handleSelectExport(exportTaskId: number) {
     exportTask.value = loadedExportTask
     task.value = loadedTask
     sourceCode.value = loadedTask.sourceCode ?? defaultSourceCode
+    sourceLanguage.value = loadedTask.language ?? sourceLanguage.value
     selectedHistoryKind.value = 'export'
     selectedHistoryId.value = exportTaskId
     activePage.value = 'player'
@@ -640,7 +660,7 @@ async function handleSelectExport(exportTaskId: number) {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
     activityErrorMessage.value = getErrorMessage(error, '加载导出历史失败')
@@ -659,7 +679,7 @@ async function handleSubmit(nextSourceCode: string) {
   stopPlayback()
 
   try {
-    task.value = await createGenerationTask(nextSourceCode)
+    task.value = await createGenerationTask(nextSourceCode, sourceLanguage.value)
     selectedHistoryKind.value = 'generation'
     selectedHistoryId.value = task.value.id
     activePage.value = 'player'
@@ -672,7 +692,7 @@ async function handleSubmit(nextSourceCode: string) {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
     activePage.value = 'compose'
@@ -692,7 +712,7 @@ async function handleRecharge(packageCode: string) {
     await refreshRechargeStore()
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
     activityErrorMessage.value = getErrorMessage(error, '充值失败')
@@ -707,7 +727,7 @@ async function handleRegister(credentials: { username: string; password: string 
   authErrorMessage.value = ''
   try {
     await register(credentials.username, credentials.password)
-    authMessage.value = '注册成功，请登录。'
+    authMessage.value = '注册成功，请登录'
   } catch (error) {
     authErrorMessage.value = getErrorMessage(error, '注册失败')
   } finally {
@@ -758,7 +778,7 @@ function startGenerationPolling(taskId: number) {
     } catch (error) {
       stopGenerationPolling()
       if (isAuthExpiredError(error)) {
-        handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+        handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
         return
       }
       submissionErrorMessage.value = getErrorMessage(error, '刷新生成状态失败')
@@ -771,6 +791,7 @@ async function refreshGenerationTask(taskId: number) {
   if (task.value.sourceCode) {
     sourceCode.value = task.value.sourceCode
   }
+  sourceLanguage.value = task.value.language ?? sourceLanguage.value
   if (task.value.status === 'FAILED' && task.value.errorMessage) {
     submissionErrorMessage.value = task.value.errorMessage
     await refreshRecentActivity()
@@ -799,7 +820,7 @@ async function handleExport() {
     }
   } catch (error) {
     if (isAuthExpiredError(error)) {
-      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
       return
     }
     exportErrorMessage.value = getErrorMessage(error, '创建导出任务失败')
@@ -865,7 +886,7 @@ function startExportPolling(exportTaskId: number) {
     } catch (error) {
       stopExportPolling()
       if (isAuthExpiredError(error)) {
-        handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录。'))
+        handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
         return
       }
       exportErrorMessage.value = getErrorMessage(error, '刷新导出状态失败')
@@ -901,9 +922,9 @@ onMounted(async () => {
   } catch (error) {
     if (isAuthExpiredError(error)) {
       clearStoredToken()
-      authErrorMessage.value = '登录已过期，请重新登录。'
+      authErrorMessage.value = '登录已过期，请重新登录'
     } else {
-      authErrorMessage.value = '无法恢复登录状态，请重新登录。'
+      authErrorMessage.value = '无法恢复登录状态，请重新登录'
     }
     currentUser.value = null
   }

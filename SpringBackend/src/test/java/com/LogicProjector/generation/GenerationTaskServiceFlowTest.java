@@ -87,7 +87,7 @@ class GenerationTaskServiceFlowTest {
         UserAccount user = userAccountRepository.save(new UserAccount(null, "teacher", "hash", 120, 0, "ACTIVE"));
         userId = user.getId();
 
-        given(algorithmRecognitionService.recognize(anyString()))
+        given(algorithmRecognitionService.recognize(anyString(), anyString()))
                 .willReturn(new RecognitionResult(DetectedAlgorithm.QUICK_SORT, 0.93, "Pivot and partition detected"));
         given(aiChatClient.createStructuredResponse(anyString(), anyString()))
                 .willAnswer(invocation -> {
@@ -150,10 +150,10 @@ class GenerationTaskServiceFlowTest {
     }
 
     @Test
-    void shouldRejectNonJavaLanguageBeforeQueueingTask() {
+    void shouldRejectUnsupportedLanguageBeforeQueueingTask() {
         assertThatThrownBy(() -> service.createTask(new CreateGenerationTaskRequest(QUICK_SORT_SOURCE, "python"), userId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("JAVA_ONLY");
+                .hasMessageContaining("UNSUPPORTED_LANGUAGE");
     }
 
     @Test
@@ -168,7 +168,7 @@ class GenerationTaskServiceFlowTest {
 
     @Test
     void shouldFailUnsupportedAlgorithmWithoutChargingCredits() {
-        given(algorithmRecognitionService.recognize(anyString()))
+        given(algorithmRecognitionService.recognize(anyString(), anyString()))
                 .willThrow(new com.LogicProjector.analysis.UnsupportedAlgorithmException("Unsupported algorithm or low confidence: 0.41"));
         GenerationTask task = generationTaskRepository.save(GenerationTask.pending(
                 userAccountRepository.findById(userId).orElseThrow(),

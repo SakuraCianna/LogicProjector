@@ -7,5 +7,8 @@ public enum DetectedAlgorithm {
     BINARY_SEARCH,
     QUICK_SORT,
     MERGE_SORT,
+    HEAP_SORT,
+    BFS,
+    DFS,
     UNKNOWN
 }

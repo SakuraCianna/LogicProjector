@@ -14,6 +14,6 @@ describe('AuthPanel', () => {
     })
 
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('处理中...')
+    expect(wrapper.text()).toContain('处理中')
   })
 })

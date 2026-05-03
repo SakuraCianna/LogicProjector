@@ -82,6 +82,35 @@ def test_video_compositor_writes_concat_frame_durations(tmp_path: Path):
     assert frame_list.count("file ") == 3
 
 
+def test_video_compositor_does_not_mix_vfr_vsync_with_output_frame_rate(tmp_path: Path, monkeypatch):
+    frame_dir = tmp_path / "7" / "frames"
+    frame_dir.mkdir(parents=True)
+    (frame_dir / "frame-0001.png").write_bytes(b"one")
+    subtitle_path = tmp_path / "7" / "7.srt"
+    subtitle_path.write_text("1\n00:00:00,000 --> 00:00:01,000\n比较\n", encoding="utf-8")
+    audio_path = tmp_path / "7" / "7.mp3"
+    audio_path.write_bytes(b"mp3")
+    captured_command: list[str] = []
+
+    def fake_run(command, **_kwargs):
+        captured_command.extend(command)
+
+    monkeypatch.setattr("app.services.video_compositor.subprocess.run", fake_run)
+    compositor = VideoCompositor()
+
+    compositor.compose(
+        7,
+        frame_dir,
+        subtitle_path,
+        audio_path,
+        [TimelineEntry(1, "比较", 1.0)],
+    )
+
+    assert "-r" in captured_command
+    assert "30" in captured_command
+    assert "-vsync" not in captured_command
+
+
 def test_frame_renderer_outputs_1080p_frames(tmp_path: Path):
     renderer = FrameRenderer(tmp_path)
     payload = {
@@ -105,3 +134,27 @@ def test_frame_renderer_outputs_1080p_frames(tmp_path: Path):
 
     with Image.open(frame_dir / "frame-0001.png") as image:
         assert image.size == (1920, 1080)
+
+
+def test_frame_renderer_centers_code_window_around_highlight(tmp_path: Path):
+    renderer = FrameRenderer(tmp_path)
+    source_code = "\n".join(f"line {line_number}" for line_number in range(1, 22))
+
+    visible_lines = renderer._visible_code_lines(source_code, [15])
+
+    assert visible_lines[0][0] == 8
+    assert visible_lines[-1][0] == 21
+    assert (15, "line 15") in visible_lines
+
+
+def test_frame_renderer_keeps_bars_compact(tmp_path: Path):
+    renderer = FrameRenderer(tmp_path)
+
+    positions = renderer._bar_positions([1, 4, 5, 2, 8])
+
+    widths = [width for _left, width in positions]
+    left_edges = [left for left, _width in positions]
+
+    assert max(widths) <= 72
+    assert min(left_edges) >= 92
+    assert positions[-1][0] + positions[-1][1] <= 704

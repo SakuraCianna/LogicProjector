@@ -43,8 +43,8 @@ public class GenerationTaskService {
 
     @Transactional
     public GenerationTaskResponse createTask(CreateGenerationTaskRequest request, Long userId) {
-        if (!"java".equalsIgnoreCase(request.language())) {
-            throw new IllegalArgumentException("JAVA_ONLY");
+        if (!List.of("java", "c", "cpp").contains(request.language().toLowerCase())) {
+            throw new IllegalArgumentException("UNSUPPORTED_LANGUAGE");
         }
 
         UserAccount user = userAccountRepository.findByIdForUpdate(userId)

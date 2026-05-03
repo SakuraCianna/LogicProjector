@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
-  font-family: "Sohne", "Aptos", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family:
+    "Sohne", "Aptos", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: #111111;
   background: #ffffff;
   --bg: #ffffff;
@@ -80,8 +81,7 @@ p {
   text-transform: uppercase;
 }
 
-.panel-copy,
-.workspace-copy {
+.panel-copy {
   color: var(--muted);
   line-height: 1.75;
 }
@@ -95,7 +95,11 @@ p {
   min-height: 42px;
   border-radius: 999px;
   padding: 0 18px;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
 }
 
 .primary-button,

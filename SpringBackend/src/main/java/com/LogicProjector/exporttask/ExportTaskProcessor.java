@@ -73,15 +73,18 @@ public class ExportTaskProcessor {
 
             int actualCharge = result.tokenUsage() + result.renderSeconds() + result.concurrencyUnits();
             UserAccount user = lockedUser(exportTask);
-            billingService.settleExportCredits(user, exportTask.getGenerationTask(), exportTask, actualCharge);
+            try {
+                billingService.settleExportCredits(user, exportTask.getGenerationTask(), exportTask, actualCharge);
+            } catch (IllegalStateException settlementException) {
+                failAndRefund(exportTask, "INSUFFICIENT_CREDITS", "Export settlement failed after render");
+                return;
+            }
             exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge);
             systemLogService.info(exportTask.getUser().getId(), exportTask.getId(), "export", "Export processing completed");
-        } catch (IllegalStateException exception) {
-            failAndRefund(exportTask, "INSUFFICIENT_CREDITS", "Export settlement failed after render");
         } catch (IOException exception) {
             failAndRefund(exportTask, "INVALID_VISUALIZATION_PAYLOAD", "Export failed due to invalid visualization payload");
         } catch (RuntimeException exception) {
-            throw exception;
+            failAndRefund(exportTask, summarizeErrorMessage(exception.getMessage(), "EXPORT_PROCESSING_ERROR"), "Export processing failed unexpectedly");
         }
     }
 

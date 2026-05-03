@@ -19,7 +19,7 @@ class OpenAiCompatibleCodeAnalysisClientTest {
 
         OpenAiCompatibleCodeAnalysisClient client = new OpenAiCompatibleCodeAnalysisClient(aiChatClient);
 
-        RecognitionResult result = client.analyze("public class QuickSort { } ");
+        RecognitionResult result = client.analyze("public class QuickSort { } ", "java");
 
         assertThat(result.algorithm()).isEqualTo(DetectedAlgorithm.QUICK_SORT);
         assertThat(result.confidence()).isEqualTo(0.94);
@@ -35,9 +35,30 @@ class OpenAiCompatibleCodeAnalysisClientTest {
 
         OpenAiCompatibleCodeAnalysisClient client = new OpenAiCompatibleCodeAnalysisClient(aiChatClient);
 
-        RecognitionResult result = client.analyze("graph code");
+        RecognitionResult result = client.analyze("graph code", "java");
 
         assertThat(result.algorithm()).isEqualTo(DetectedAlgorithm.UNKNOWN);
         assertThat(result.confidence()).isEqualTo(0.72);
+    }
+
+    @Test
+    void shouldPromptForCAndCppAndExpandedAlgorithmSet() {
+        StringBuilder capturedSystemPrompt = new StringBuilder();
+        StringBuilder capturedUserPrompt = new StringBuilder();
+        AiChatClient aiChatClient = (systemPrompt, userPrompt) -> {
+            capturedSystemPrompt.append(systemPrompt);
+            capturedUserPrompt.append(userPrompt);
+            return objectMapper.createObjectNode()
+                    .put("algorithm", "BFS")
+                    .put("confidence", 0.91)
+                    .put("rationale", "queue traversal detected");
+        };
+        OpenAiCompatibleCodeAnalysisClient client = new OpenAiCompatibleCodeAnalysisClient(aiChatClient);
+
+        RecognitionResult result = client.analyze("void bfs(vector<int> graph[]) {}", "cpp");
+
+        assertThat(result.algorithm()).isEqualTo(DetectedAlgorithm.BFS);
+        assertThat(capturedSystemPrompt).contains("Java", "C", "C++", "HEAP_SORT", "BFS", "DFS");
+        assertThat(capturedUserPrompt).contains("Language: cpp", "void bfs");
     }
 }
