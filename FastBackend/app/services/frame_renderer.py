@@ -4,6 +4,56 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 class FrameRenderer:
+    LABELS = {
+        "data_structure_view": "数据结构视图",
+        "narration": "讲解字幕",
+        "code_focus": "源码定位",
+        "current_implementation": "当前实现",
+    }
+    ALGORITHM_NAMES = {
+        "BUBBLE_SORT": "冒泡排序",
+        "SELECTION_SORT": "选择排序",
+        "INSERTION_SORT": "插入排序",
+        "BINARY_SEARCH": "二分查找",
+        "QUICK_SORT": "快速排序",
+        "MERGE_SORT": "归并排序",
+        "HEAP_SORT": "堆排序",
+        "BFS": "广度优先搜索",
+        "DFS": "深度优先搜索",
+    }
+    STEP_TITLE_PREFIXES = {
+        "Compare ": "比较元素",
+        "Swap ": "交换元素",
+        "Heapify node": "维护堆结构",
+        "Visit node": "访问节点",
+        "Explore node": "探索节点",
+    }
+    STEP_TITLES = {
+        "Check middle": "检查中点",
+        "Choose pivot": "选择基准",
+        "Compare to pivot": "与基准比较",
+        "Move left of pivot": "移到基准左侧",
+        "Place pivot": "放置基准",
+        "Quick sort complete": "快速排序完成",
+        "Merge sort complete": "归并排序完成",
+        "Bubble sort complete": "冒泡排序完成",
+        "Selection sort complete": "选择排序完成",
+        "Insertion sort complete": "插入排序完成",
+        "Heap sort complete": "堆排序完成",
+        "Scan for minimum": "扫描最小值",
+        "Update minimum": "更新最小值",
+        "Swap into place": "交换到位",
+        "Pick key": "取出待插入值",
+        "Shift right": "右移元素",
+        "Insert key": "插入到位",
+        "Move max to sorted suffix": "最大值移入有序区",
+        "Restore heap order": "恢复堆顺序",
+        "Split range": "拆分区间",
+        "Merge next value": "合并下一个值",
+        "Append remaining left": "追加左侧剩余值",
+        "Append remaining right": "追加右侧剩余值",
+    }
+
     def __init__(self, output_root: Path) -> None:
         self.output_root = output_root
         self.scale = 1.5
@@ -62,14 +112,14 @@ class FrameRenderer:
         step_count: int,
     ) -> None:
         draw.rounded_rectangle(self._box(56, 40, 324, 92), radius=self._s(18), fill=(30, 41, 59))
-        draw.text(self._point(80, 56), f"{algorithm.replace('_', ' ')}", fill=(224, 242, 254), font=self.font_small)
+        draw.text(self._point(80, 56), self._display_algorithm(algorithm), fill=(224, 242, 254), font=self.font_small)
         draw.rounded_rectangle(self._box(1070, 40, 1216, 92), radius=self._s(18), fill=(14, 165, 233))
         draw.text(self._point(1100, 56), f"{step_index}/{step_count}", fill=(255, 255, 255), font=self.font_small)
 
     def _draw_stage(self, draw: ImageDraw.ImageDraw, step: dict) -> None:
         draw.rounded_rectangle(self._box(56, 120, 730, 520), radius=self._s(28), fill=(20, 30, 50))
-        draw.text(self._point(84, 148), step["title"], fill=(255, 255, 255), font=self.font_title)
-        draw.text(self._point(84, 184), "Data structure view", fill=(148, 163, 184), font=self.font_small)
+        draw.text(self._point(84, 148), self._display_step_title(step), fill=(255, 255, 255), font=self.font_title)
+        draw.text(self._point(84, 184), self._label("data_structure_view"), fill=(148, 163, 184), font=self.font_small)
 
         values = step["arrayState"]
         bar_positions = self._bar_positions(values)
@@ -86,15 +136,15 @@ class FrameRenderer:
 
     def _draw_explanation(self, draw: ImageDraw.ImageDraw, step: dict) -> None:
         draw.rounded_rectangle(self._box(56, 548, 730, 664), radius=self._s(24), fill=(38, 50, 76))
-        draw.text(self._point(84, 574), "Narration", fill=(125, 211, 252), font=self.font_small)
+        draw.text(self._point(84, 574), self._label("narration"), fill=(125, 211, 252), font=self.font_small)
         self._draw_wrapped_text(draw, step["narration"], 84, 608, 590, self.font_regular, (226, 232, 240), 28)
 
     def _draw_code_panel(
         self, draw: ImageDraw.ImageDraw, source_code: str, highlighted_lines: list[int]
     ) -> None:
         draw.rounded_rectangle(self._box(760, 120, 1216, 664), radius=self._s(28), fill=(26, 34, 58))
-        draw.text(self._point(788, 146), "Code focus", fill=(255, 255, 255), font=self.font_title)
-        draw.text(self._point(788, 178), "Current implementation", fill=(148, 163, 184), font=self.font_small)
+        draw.text(self._point(788, 146), self._label("code_focus"), fill=(255, 255, 255), font=self.font_title)
+        draw.text(self._point(788, 178), self._label("current_implementation"), fill=(148, 163, 184), font=self.font_small)
 
         lines = self._visible_code_lines(source_code, highlighted_lines)
         line_y = 226
@@ -138,6 +188,27 @@ class FrameRenderer:
         while trimmed and draw.textlength(trimmed, font=font) > self._s(max_width):
             trimmed = trimmed[:-1]
         return trimmed.rstrip()
+
+    def _display_algorithm(self, algorithm: str) -> str:
+        return self.ALGORITHM_NAMES.get(algorithm, algorithm.replace("_", " "))
+
+    def _display_step_title(self, step_or_title) -> str:
+        if isinstance(step_or_title, dict):
+            display_title = step_or_title.get("displayTitle")
+            if display_title:
+                return display_title
+            title = step_or_title.get("title", "")
+        else:
+            title = step_or_title
+        if title in self.STEP_TITLES:
+            return self.STEP_TITLES[title]
+        for prefix, translated in self.STEP_TITLE_PREFIXES.items():
+            if title.startswith(prefix):
+                return translated
+        return title
+
+    def _label(self, key: str) -> str:
+        return self.LABELS[key]
 
     def _s(self, value: int | float) -> int:
         return int(round(value * self.scale))

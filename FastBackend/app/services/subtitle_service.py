@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from app.services.tts_service import TimelineEntry
+from app.services.tts_service import timeline_duration_seconds
 
 
 class SubtitleService:
@@ -15,7 +16,7 @@ class SubtitleService:
         current_second = 0.0
         for index, entry in enumerate(timeline, start=1):
             start = self._format_timestamp(current_second)
-            current_second += entry.duration_seconds
+            current_second += timeline_duration_seconds(entry)
             end = self._format_timestamp(current_second)
             lines.extend([str(index), f"{start} --> {end}", entry.narration, ""])
 

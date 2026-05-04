@@ -107,7 +107,8 @@
 
           <GenerationStatusCard v-else-if="currentUser && task" :task="task">
             <template #actions>
-              <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
+              <button class="secondary-button" data-continue-generation-button type="button"
+                @click="continueGeneration">继续生成</button>
             </template>
           </GenerationStatusCard>
 
@@ -121,12 +122,14 @@
         <section v-else class="workspace-page">
           <CodeSubmissionPanel
             v-if="currentUser && activePage === 'compose' && (viewState === 'ready' || viewState === 'error-recoverable')"
-            v-model="sourceCode" v-model:language="sourceLanguage" :busy="generationBusy" :error-message="submissionErrorMessage"
+            v-model="sourceCode" :language="sourceLanguage" :busy="generationBusy" :error-message="submissionErrorMessage"
+            @update:language="handleSourceLanguageChange"
             @submit="handleSubmit" />
 
           <GenerationStatusCard v-else-if="currentUser && activePage === 'compose' && task" :task="task">
             <template #actions>
-              <button class="secondary-button" data-start-over-button type="button" @click="startOver">重新开始</button>
+              <button class="secondary-button" data-continue-generation-button type="button"
+                @click="continueGeneration">继续生成</button>
             </template>
           </GenerationStatusCard>
 
@@ -239,8 +242,10 @@ import { withoutSentencePeriod } from './utils/displayText'
 
 type ViewState = 'auth' | 'ready' | 'generating' | 'generated' | 'exporting' | 'exported' | 'error-recoverable'
 type WorkspacePage = 'compose' | 'player' | 'generations' | 'exports' | 'recharge'
+type SourceLanguage = 'java' | 'c' | 'cpp'
 
-const defaultSourceCode = `public class QuickSort {
+const sourceExamples: Record<SourceLanguage, string> = {
+  java: `public class QuickSort {
   public static void quickSort(int[] array, int low, int high) {
     if (low >= high) {
       return;
@@ -269,7 +274,69 @@ const defaultSourceCode = `public class QuickSort {
     array[high] = temp;
     return i + 1;
   }
-}`
+}`,
+  c: `int partition(int array[], int low, int high) {
+  int pivot = array[high];
+  int i = low - 1;
+
+  for (int j = low; j < high; j++) {
+    if (array[j] <= pivot) {
+      i++;
+      int temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+    }
+  }
+
+  int temp = array[i + 1];
+  array[i + 1] = array[high];
+  array[high] = temp;
+  return i + 1;
+}
+
+void quickSort(int array[], int low, int high) {
+  if (low >= high) {
+    return;
+  }
+
+  int pivotIndex = partition(array, low, high);
+  quickSort(array, low, pivotIndex - 1);
+  quickSort(array, pivotIndex + 1, high);
+}`,
+  cpp: `#include <vector>
+using namespace std;
+
+int partition(vector<int>& array, int low, int high) {
+  int pivot = array[high];
+  int i = low - 1;
+
+  for (int j = low; j < high; j++) {
+    if (array[j] <= pivot) {
+      i++;
+      int temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+    }
+  }
+
+  int temp = array[i + 1];
+  array[i + 1] = array[high];
+  array[high] = temp;
+  return i + 1;
+}
+
+void quickSort(vector<int>& array, int low, int high) {
+  if (low >= high) {
+    return;
+  }
+
+  int pivotIndex = partition(array, low, high);
+  quickSort(array, low, pivotIndex - 1);
+  quickSort(array, pivotIndex + 1, high);
+}`,
+}
+
+const defaultSourceCode = sourceExamples.java
 
 const currentUser = ref<UserProfile | null>(null)
 const task = ref<GenerationTaskResponse | null>(null)
@@ -280,7 +347,7 @@ const recentExportTasks = ref<ExportTaskListItemResponse[]>([])
 const rechargePackages = ref<RechargePackageResponse[]>([])
 const rechargeOrders = ref<RechargeOrderResponse[]>([])
 const sourceCode = ref(defaultSourceCode)
-const sourceLanguage = ref('java')
+const sourceLanguage = ref<SourceLanguage>('java')
 const activeIndex = ref(0)
 const playbackSpeed = ref(1)
 const isPlaying = ref(false)
@@ -379,6 +446,27 @@ function formatRechargeStatus(status: string) {
 
 function formatDisplayTime(value: string) {
   return value.replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/u, '')
+}
+
+function normalizeSourceLanguage(value: string | null | undefined): SourceLanguage {
+  return value === 'c' || value === 'cpp' ? value : 'java'
+}
+
+function isStarterSource(value: string) {
+  return Object.values(sourceExamples).includes(value)
+}
+
+function handleSourceLanguageChange(nextLanguage: string) {
+  const normalizedLanguage = normalizeSourceLanguage(nextLanguage)
+  if (normalizedLanguage === sourceLanguage.value) {
+    return
+  }
+
+  const shouldReplaceSource = sourceCode.value.trim() === '' || isStarterSource(sourceCode.value)
+  sourceLanguage.value = normalizedLanguage
+  if (shouldReplaceSource) {
+    sourceCode.value = sourceExamples[normalizedLanguage]
+  }
 }
 
 function formatGenerationStatus(status: string) {
@@ -572,11 +660,33 @@ function startOver() {
   stopPlayback()
 }
 
+async function continueGeneration() {
+  if (!task.value) {
+    return
+  }
+
+  const taskId = task.value.id
+  activePage.value = 'player'
+  submissionErrorMessage.value = ''
+  try {
+    await refreshGenerationTask(taskId)
+    if (task.value && task.value.status !== 'COMPLETED' && task.value.status !== 'FAILED') {
+      startGenerationPolling(taskId)
+    }
+  } catch (error) {
+    if (isAuthExpiredError(error)) {
+      handleAuthExpired(getErrorMessage(error, '登录已过期，请重新登录'))
+      return
+    }
+    submissionErrorMessage.value = getErrorMessage(error, '刷新生成状态失败')
+  }
+}
+
 function openNewWalkthrough() {
   activePage.value = 'compose'
   clearHistorySelection()
-  sourceCode.value = defaultSourceCode
   sourceLanguage.value = 'java'
+  sourceCode.value = defaultSourceCode
   task.value = null
   submissionErrorMessage.value = ''
   activityErrorMessage.value = ''
@@ -612,7 +722,7 @@ async function handleSelectGeneration(taskId: number) {
     const loadedTask = await getGenerationTask(taskId)
     task.value = loadedTask
     sourceCode.value = loadedTask.sourceCode ?? defaultSourceCode
-    sourceLanguage.value = loadedTask.language ?? sourceLanguage.value
+    sourceLanguage.value = normalizeSourceLanguage(loadedTask.language)
     selectedHistoryKind.value = 'generation'
     selectedHistoryId.value = taskId
     activePage.value = loadedTask.status === 'FAILED' ? 'compose' : 'player'
@@ -648,7 +758,7 @@ async function handleSelectExport(exportTaskId: number) {
     exportTask.value = loadedExportTask
     task.value = loadedTask
     sourceCode.value = loadedTask.sourceCode ?? defaultSourceCode
-    sourceLanguage.value = loadedTask.language ?? sourceLanguage.value
+    sourceLanguage.value = normalizeSourceLanguage(loadedTask.language)
     selectedHistoryKind.value = 'export'
     selectedHistoryId.value = exportTaskId
     activePage.value = 'player'
@@ -791,7 +901,7 @@ async function refreshGenerationTask(taskId: number) {
   if (task.value.sourceCode) {
     sourceCode.value = task.value.sourceCode
   }
-  sourceLanguage.value = task.value.language ?? sourceLanguage.value
+  sourceLanguage.value = normalizeSourceLanguage(task.value.language)
   if (task.value.status === 'FAILED' && task.value.errorMessage) {
     submissionErrorMessage.value = task.value.errorMessage
     await refreshRecentActivity()

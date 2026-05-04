@@ -28,13 +28,13 @@
 }
 
 html {
-  min-height: 100%;
+  height: 100%;
   background: var(--bg);
 }
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  height: 100%;
   margin: 0;
   background:
     radial-gradient(circle at 50% 0%, rgba(0, 0, 0, 0.035), transparent 28rem),
@@ -69,7 +69,7 @@ p {
 }
 
 #app {
-  min-height: 100vh;
+  height: 100%;
 }
 
 .panel-kicker,
@@ -145,4 +145,8 @@ p {
 
 .auth-success {
   color: var(--success);
+}
+
+.export-warning {
+  color: #8a5a00;
 }

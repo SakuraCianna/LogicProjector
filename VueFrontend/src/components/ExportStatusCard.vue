@@ -22,6 +22,7 @@
         <dd>{{ exportTask.creditsCharged }}</dd>
       </div>
     </dl>
+    <p v-if="displayExportWarning" class="export-warning">{{ displayExportWarning }}</p>
     <p v-if="displayExportError" class="export-error">{{ displayExportError }}</p>
     <button v-if="exportTask.status === 'FAILED'" class="secondary-button" data-retry-export-button type="button"
       @click="$emit('retry')">重新导出</button>
@@ -52,6 +53,12 @@ const downloadBusy = ref(false)
 const downloadError = ref('')
 
 const displayExportError = computed(() => withoutSentencePeriod(props.exportTask.errorMessage))
+const displayExportWarning = computed(() => {
+  const mapping: Record<string, string> = {
+    TTS_FAILED_FALLBACK_TO_SILENT: '语音生成失败，已导出静音视频',
+  }
+  return withoutSentencePeriod(mapping[props.exportTask.warningMessage ?? ''] ?? props.exportTask.warningMessage)
+})
 const displayDownloadError = computed(() => withoutSentencePeriod(downloadError.value))
 
 async function handleDownload() {

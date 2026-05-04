@@ -16,6 +16,8 @@ import com.LogicProjector.billing.BillingService;
 import com.LogicProjector.systemlog.SystemLogService;
 import com.LogicProjector.visualization.NarrationResult;
 import com.LogicProjector.visualization.NarrationService;
+import com.LogicProjector.visualization.StepDisplayTitleLocalizer;
+import com.LogicProjector.visualization.StepLineMappingApplier;
 import com.LogicProjector.visualization.VisualizationPayload;
 import com.LogicProjector.visualization.VisualizationStateExtractorFactory;
 import com.LogicProjector.visualization.VisualizationStep;
@@ -74,8 +76,10 @@ public class GenerationTaskProcessor {
             List<Integer> sampleInput = sampleInputFor(recognition.algorithm());
             VisualizationPayload payload = visualizationStateExtractorFactory.forAlgorithm(recognition.algorithm())
                     .extract(recognition.algorithm().name(), sampleInput, task.getSourceCode());
-            NarrationResult narration = narrationService.createNarration(recognition.algorithm(), payload, task.getSourceCode());
-            VisualizationPayload narratedPayload = applyStepNarrations(payload, narration.stepNarrations());
+            VisualizationPayload mappedPayload = StepDisplayTitleLocalizer.apply(
+                    StepLineMappingApplier.apply(payload, recognition.lineMappings()));
+            NarrationResult narration = narrationService.createNarration(recognition.algorithm(), mappedPayload, task.getSourceCode());
+            VisualizationPayload narratedPayload = applyStepNarrations(mappedPayload, narration.stepNarrations());
             JsonNode payloadJson = objectMapper.valueToTree(narratedPayload);
 
             task.complete(recognition.algorithm().name(), recognition.confidence(), payloadJson, narration.summary());
@@ -162,7 +166,8 @@ public class GenerationTaskProcessor {
                     stepNarrations.get(index),
                     step.arrayState(),
                     step.activeIndices(),
-                    step.highlightedLines()));
+                    step.highlightedLines(),
+                    step.displayTitle()));
         }
         return new VisualizationPayload(payload.algorithm(), List.copyOf(narratedSteps));
     }

@@ -59,6 +59,9 @@ public class ExportTask {
     @Column
     private String errorMessage;
 
+    @Column
+    private String warningMessage;
+
     @Column(nullable = false)
     private Integer retryCount;
 
@@ -129,6 +132,10 @@ public class ExportTask {
         return errorMessage;
     }
 
+    public String getWarningMessage() {
+        return warningMessage;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }
@@ -153,6 +160,10 @@ public class ExportTask {
     }
 
     public void complete(String videoPath, String subtitlePath, String audioPath, int creditsCharged) {
+        complete(videoPath, subtitlePath, audioPath, creditsCharged, null);
+    }
+
+    public void complete(String videoPath, String subtitlePath, String audioPath, int creditsCharged, String warningMessage) {
         this.status = ExportTaskStatus.COMPLETED;
         this.progress = 100;
         this.videoPath = videoPath;
@@ -160,6 +171,7 @@ public class ExportTask {
         this.audioPath = audioPath;
         this.creditsCharged = creditsCharged;
         this.errorMessage = null;
+        this.warningMessage = warningMessage;
         this.lastProcessedAt = Instant.now();
     }
 
@@ -167,6 +179,7 @@ public class ExportTask {
         this.status = ExportTaskStatus.FAILED;
         this.progress = 100;
         this.errorMessage = errorMessage;
+        this.warningMessage = null;
         this.lastProcessedAt = Instant.now();
     }
 

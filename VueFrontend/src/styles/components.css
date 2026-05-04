@@ -118,12 +118,14 @@
 
 .code-input {
   min-height: 430px;
+  max-height: min(58vh, 680px);
   resize: vertical;
   padding: 18px;
   font-family:
     "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 0.94rem;
   line-height: 1.72;
+  overscroll-behavior: contain;
 }
 
 .submission-panel__footer {

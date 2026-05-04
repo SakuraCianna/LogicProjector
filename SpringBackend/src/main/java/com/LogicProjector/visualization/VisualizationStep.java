@@ -7,6 +7,15 @@ public record VisualizationStep(
         String narration,
         List<Integer> arrayState,
         List<Integer> activeIndices,
-        List<Integer> highlightedLines
+        List<Integer> highlightedLines,
+        String displayTitle
 ) {
+    public VisualizationStep(
+            String title,
+            String narration,
+            List<Integer> arrayState,
+            List<Integer> activeIndices,
+            List<Integer> highlightedLines) {
+        this(title, narration, arrayState, activeIndices, highlightedLines, null);
+    }
 }

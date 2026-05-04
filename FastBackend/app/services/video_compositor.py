@@ -2,6 +2,7 @@ from pathlib import Path
 import subprocess
 
 from app.services.tts_service import TimelineEntry
+from app.services.tts_service import timeline_duration_seconds
 
 
 class VideoCompositor:
@@ -61,7 +62,7 @@ class VideoCompositor:
             frame_path = frame_dir / f"frame-{entry.step_index:04d}.png"
             last_frame_path = frame_path
             lines.append(f"file '{self._ffmpeg_path(frame_path)}'")
-            lines.append(f"duration {max(0.5, entry.duration_seconds):.3f}")
+            lines.append(f"duration {timeline_duration_seconds(entry):.3f}")
         if last_frame_path is not None:
             lines.append(f"file '{self._ffmpeg_path(last_frame_path)}'")
         frame_list_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

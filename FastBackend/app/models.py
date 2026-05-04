@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ExportRequest(BaseModel):
@@ -22,3 +22,4 @@ class ExportResponse(BaseModel):
     renderSeconds: int
     concurrencyUnits: int
     errorMessage: str | None
+    warnings: list[str] = Field(default_factory=list)

@@ -58,7 +58,34 @@ class OpenAiCompatibleCodeAnalysisClientTest {
         RecognitionResult result = client.analyze("void bfs(vector<int> graph[]) {}", "cpp");
 
         assertThat(result.algorithm()).isEqualTo(DetectedAlgorithm.BFS);
-        assertThat(capturedSystemPrompt).contains("Java", "C", "C++", "HEAP_SORT", "BFS", "DFS");
+        assertThat(capturedSystemPrompt).contains("Java", "C", "C++", "HEAP_SORT", "BFS", "DFS", "lineMappings");
         assertThat(capturedUserPrompt).contains("Language: cpp", "void bfs");
+    }
+
+    @Test
+    void shouldParseAndValidateLineMappingsFromStructuredModelResponse() {
+        AiChatClient aiChatClient = (systemPrompt, userPrompt) -> {
+            var response = objectMapper.createObjectNode()
+                    .put("algorithm", "QUICK_SORT")
+                    .put("confidence", 0.95)
+                    .put("rationale", "custom partition code detected");
+            var mappings = response.putObject("lineMappings");
+            mappings.putArray("PIVOT").add(3).add(3).add(99).add(0).add("bad");
+            mappings.putArray("compare").add(5).add(4);
+            return response;
+        };
+
+        OpenAiCompatibleCodeAnalysisClient client = new OpenAiCompatibleCodeAnalysisClient(aiChatClient);
+
+        RecognitionResult result = client.analyze("""
+                line 1
+                line 2
+                line 3
+                line 4
+                line 5
+                """, "java");
+
+        assertThat(result.lineMappings()).containsEntry("PIVOT", java.util.List.of(3));
+        assertThat(result.lineMappings()).containsEntry("COMPARE", java.util.List.of(4, 5));
     }
 }

@@ -14,8 +14,8 @@ public final class SortingExtractors {
         return (algorithm, input, sourceCode) -> {
             List<Integer> values = new ArrayList<>(input);
             List<VisualizationStep> steps = new ArrayList<>();
-            List<Integer> compareLines = lineNumbers(sourceCode, List.of(3, 4), SortingExtractors::isBubbleCompareLine);
-            List<Integer> swapLines = lineNumbers(sourceCode, List.of(5), SortingExtractors::isBubbleSwapLine);
+            List<Integer> compareLines = lineNumbers(sourceCode, SortingExtractors::isBubbleCompareLine);
+            List<Integer> swapLines = lineNumbers(sourceCode, SortingExtractors::isBubbleSwapLine);
 
             for (int i = 0; i < values.size() - 1; i++) {
                 for (int j = 0; j < values.size() - i - 1; j++) {
@@ -27,7 +27,7 @@ public final class SortingExtractors {
                 }
             }
 
-            steps.add(step("Bubble sort complete", "The array is now sorted", values, List.of(), List.of(6)));
+            steps.add(step("Bubble sort complete", "The array is now sorted", values, List.of(), List.of()));
             return new VisualizationPayload(algorithm, steps);
         };
     }
@@ -36,23 +36,24 @@ public final class SortingExtractors {
         return (algorithm, input, sourceCode) -> {
             List<Integer> values = new ArrayList<>(input);
             List<VisualizationStep> steps = new ArrayList<>();
+            SelectionSortLines lines = selectionSortLines(sourceCode);
 
             for (int i = 0; i < values.size() - 1; i++) {
                 int minIndex = i;
                 for (int j = i + 1; j < values.size(); j++) {
-                    steps.add(step("Scan for minimum", "Track the smallest value in the unsorted region", values, List.of(minIndex, j), List.of(3, 4)));
+                    steps.add(step("Scan for minimum", "Track the smallest value in the unsorted region", values, List.of(minIndex, j), lines.scan()));
                     if (values.get(j) < values.get(minIndex)) {
                         minIndex = j;
-                        steps.add(step("Update minimum", "A new minimum has been found", values, List.of(i, minIndex), List.of(4)));
+                        steps.add(step("Update minimum", "A new minimum has been found", values, List.of(i, minIndex), lines.update()));
                     }
                 }
                 if (minIndex != i) {
                     Collections.swap(values, i, minIndex);
-                    steps.add(step("Swap into place", "Move the smallest value into the sorted prefix", values, List.of(i, minIndex), List.of(5)));
+                    steps.add(step("Swap into place", "Move the smallest value into the sorted prefix", values, List.of(i, minIndex), lines.swap()));
                 }
             }
 
-            steps.add(step("Selection sort complete", "The array is now sorted", values, List.of(), List.of(6)));
+            steps.add(step("Selection sort complete", "The array is now sorted", values, List.of(), List.of()));
             return new VisualizationPayload(algorithm, steps);
         };
     }
@@ -61,21 +62,22 @@ public final class SortingExtractors {
         return (algorithm, input, sourceCode) -> {
             List<Integer> values = new ArrayList<>(input);
             List<VisualizationStep> steps = new ArrayList<>();
+            InsertionSortLines lines = insertionSortLines(sourceCode);
 
             for (int i = 1; i < values.size(); i++) {
                 int key = values.get(i);
                 int j = i - 1;
-                steps.add(step("Pick key", "Take the next value from the unsorted region", values, List.of(i), List.of(3)));
+                steps.add(step("Pick key", "Take the next value from the unsorted region", values, List.of(i), lines.pick()));
                 while (j >= 0 && values.get(j) > key) {
                     values.set(j + 1, values.get(j));
-                    steps.add(step("Shift right", "Shift larger values one slot to the right", values, List.of(j, j + 1), List.of(4, 5)));
+                    steps.add(step("Shift right", "Shift larger values one slot to the right", values, List.of(j, j + 1), lines.shift()));
                     j--;
                 }
                 values.set(j + 1, key);
-                steps.add(step("Insert key", "Place the key into its sorted position", values, List.of(j + 1), List.of(6)));
+                steps.add(step("Insert key", "Place the key into its sorted position", values, List.of(j + 1), lines.insert()));
             }
 
-            steps.add(step("Insertion sort complete", "The array is now sorted", values, List.of(), List.of(7)));
+            steps.add(step("Insertion sort complete", "The array is now sorted", values, List.of(), List.of()));
             return new VisualizationPayload(algorithm, steps);
         };
     }
@@ -84,8 +86,8 @@ public final class SortingExtractors {
         return (algorithm, input, sourceCode) -> {
             List<Integer> values = new ArrayList<>(input);
             List<VisualizationStep> steps = new ArrayList<>();
-            List<Integer> heapifyLines = lineNumbers(sourceCode, List.of(3, 4), line -> compact(line).contains("heapify("));
-            List<Integer> swapLines = lineNumbers(sourceCode, List.of(5), SortingExtractors::isBubbleSwapLine);
+            List<Integer> heapifyLines = lineNumbers(sourceCode, line -> compact(line).contains("heapify("));
+            List<Integer> swapLines = lineNumbers(sourceCode, SortingExtractors::isSwapLine);
 
             int size = values.size();
             for (int index = size / 2 - 1; index >= 0; index--) {
@@ -97,7 +99,7 @@ public final class SortingExtractors {
                 heapify(values, end, 0, steps, heapifyLines, swapLines);
             }
 
-            steps.add(step("Heap sort complete", "The array is now sorted", values, List.of(), List.of(6)));
+            steps.add(step("Heap sort complete", "The array is now sorted", values, List.of(), List.of()));
             return new VisualizationPayload(algorithm, steps);
         };
     }
@@ -128,9 +130,24 @@ public final class SortingExtractors {
         return new VisualizationStep(title, narration, List.copyOf(values), List.copyOf(active), List.copyOf(highlightedLines));
     }
 
-    private static List<Integer> lineNumbers(String sourceCode, List<Integer> fallback, Predicate<String> matcher) {
+    private static SelectionSortLines selectionSortLines(String sourceCode) {
+        return new SelectionSortLines(
+                lineNumbers(sourceCode, SortingExtractors::isSelectionScanLine),
+                lineNumbers(sourceCode, line -> compact(line).toLowerCase().contains("minindex=j")
+                        || compact(line).toLowerCase().contains("min=j")),
+                lineNumbers(sourceCode, SortingExtractors::isSelectionSwapLine));
+    }
+
+    private static InsertionSortLines insertionSortLines(String sourceCode) {
+        return new InsertionSortLines(
+                lineNumbers(sourceCode, line -> compact(line).contains("key=") && compact(line).contains("[i]")),
+                lineNumbers(sourceCode, SortingExtractors::isInsertionShiftLine),
+                lineNumbers(sourceCode, line -> compact(line).contains("[j+1]=key")));
+    }
+
+    private static List<Integer> lineNumbers(String sourceCode, Predicate<String> matcher) {
         if (sourceCode == null || sourceCode.isBlank()) {
-            return fallback;
+            return List.of();
         }
 
         List<Integer> matches = new ArrayList<>();
@@ -140,7 +157,7 @@ public final class SortingExtractors {
                 matches.add(index + 1);
             }
         }
-        return matches.isEmpty() ? fallback : matches;
+        return matches;
     }
 
     private static boolean isBubbleCompareLine(String line) {
@@ -156,7 +173,46 @@ public final class SortingExtractors {
         return compact.contains("=") && compact.contains("[j]") && compact.contains("[j+1]") && !compact.contains(">");
     }
 
+    private static boolean isSelectionScanLine(String line) {
+        String compact = compact(line);
+        return compact.contains("for(") && compact.contains("j=")
+                || compact.contains("[j]") && compact.contains("[min") && compact.contains("<");
+    }
+
+    private static boolean isSelectionSwapLine(String line) {
+        String compact = compact(line);
+        return compact.contains("temp=") && compact.contains("[i]")
+                || compact.contains("[i]=") && compact.contains("[min")
+                || compact.contains("[min") && compact.contains("=temp");
+    }
+
+    private static boolean isInsertionShiftLine(String line) {
+        String compact = compact(line);
+        return compact.contains("[j]>key")
+                || compact.contains("[j+1]=") && compact.contains("[j]")
+                || compact.contains("j--");
+    }
+
+    private static boolean isSwapLine(String line) {
+        String compact = compact(line);
+        return compact.contains("swap(") || compact.contains("temp") || compact.contains("=temp");
+    }
+
     private static String compact(String line) {
         return line.replaceAll("\\s+", "");
+    }
+
+    private record SelectionSortLines(
+            List<Integer> scan,
+            List<Integer> update,
+            List<Integer> swap
+    ) {
+    }
+
+    private record InsertionSortLines(
+            List<Integer> pick,
+            List<Integer> shift,
+            List<Integer> insert
+    ) {
     }
 }

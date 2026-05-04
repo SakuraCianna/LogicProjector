@@ -351,7 +351,7 @@ describe("App", () => {
     expect(wrapper.text()).toContain("teacher");
   });
 
-  it("submits registration from the auth panel", async () => {
+  it("submits registration from the auth panel and returns to login mode", async () => {
     vi.mocked(api.getStoredToken).mockReturnValue(null);
     vi.mocked(api.me).mockRejectedValue(new Error("Auth check failed"));
     vi.mocked(api.register).mockResolvedValue(mockUser);
@@ -362,11 +362,13 @@ describe("App", () => {
     await wrapper.find(".auth-toggle").trigger("click");
     await wrapper.find('input[placeholder="用户名"]').setValue("new-user");
     await wrapper.find('input[placeholder="密码"]').setValue("secret-pass");
+    await wrapper.find('input[placeholder="确认密码"]').setValue("secret-pass");
     await wrapper.find(".auth-form").trigger("submit");
     await flushPromises();
 
     expect(api.register).toHaveBeenCalledWith("new-user", "secret-pass");
     expect(wrapper.text()).toContain("注册成功，请登录");
+    expect(wrapper.text()).toContain("欢迎回来");
   });
 
   it("logs out and clears the stored token", async () => {
@@ -426,6 +428,56 @@ describe("App", () => {
 
     expect(wrapper.find(".task-summary-card h2").text()).toContain("快速排序");
     expect(wrapper.text()).toContain("Compare");
+  });
+
+  it("shows a continue generation action while a task is queued", async () => {
+    const pendingTask = {
+      id: 8,
+      status: "PENDING",
+      language: "java",
+      detectedAlgorithm: null,
+      summary: null,
+      confidenceScore: 0,
+      visualizationPayload: null,
+      errorMessage: null,
+      creditsCharged: 0,
+      sourceCode: "public class QuickSort {}",
+    };
+    vi.mocked(api.createGenerationTask).mockResolvedValue(pendingTask);
+    vi.mocked(api.getGenerationTask).mockResolvedValue(pendingTask);
+
+    const wrapper = await mountAuthenticatedApp();
+    await wrapper.find("textarea").setValue("public class QuickSort {}");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("排队中");
+    expect(wrapper.find("[data-continue-generation-button]").text()).toContain("继续生成");
+    expect(wrapper.text()).not.toContain("重新开始");
+  });
+
+  it("updates the starter code when the selected language changes", async () => {
+    const wrapper = await mountAuthenticatedApp();
+
+    await wrapper.find("select").setValue("cpp");
+
+    expect((wrapper.find("textarea").element as HTMLTextAreaElement).value).toContain(
+      "void quickSort(vector<int>& array, int low, int high)",
+    );
+    expect((wrapper.find("textarea").element as HTMLTextAreaElement).value).not.toContain(
+      "public class QuickSort",
+    );
+  });
+
+  it("keeps custom code when the selected language changes", async () => {
+    const wrapper = await mountAuthenticatedApp();
+
+    await wrapper.find("textarea").setValue("custom algorithm code");
+    await wrapper.find("select").setValue("c");
+
+    expect((wrapper.find("textarea").element as HTMLTextAreaElement).value).toBe(
+      "custom algorithm code",
+    );
   });
 
   it("shows a readable error when generation is rejected", async () => {

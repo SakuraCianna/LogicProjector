@@ -3,6 +3,7 @@ from pathlib import Path
 from PIL import Image
 
 from app.services.frame_renderer import FrameRenderer
+from app.services.export_pipeline import ExportPipeline
 from app.services.subtitle_service import SubtitleService
 from app.services.tts_service import TtsService
 from app.services.tts_service import TimelineEntry
@@ -63,6 +64,18 @@ def test_subtitle_service_uses_timeline_durations(tmp_path: Path):
     )
 
 
+def test_subtitle_service_uses_same_minimum_duration_as_frame_timeline(tmp_path: Path):
+    service = SubtitleService(tmp_path)
+
+    subtitle_path = service.build_subtitle_file(7, [TimelineEntry(1, "短句", 0.2)])
+
+    assert subtitle_path.read_text(encoding="utf-8") == (
+        "1\n"
+        "00:00:00,000 --> 00:00:00,500\n"
+        "短句\n"
+    )
+
+
 def test_video_compositor_writes_concat_frame_durations(tmp_path: Path):
     frame_dir = tmp_path / "7" / "frames"
     frame_dir.mkdir(parents=True)
@@ -80,6 +93,17 @@ def test_video_compositor_writes_concat_frame_durations(tmp_path: Path):
     assert "duration 1.250" in frame_list
     assert "duration 2.500" in frame_list
     assert frame_list.count("file ") == 3
+
+
+def test_video_compositor_normalizes_short_frame_durations(tmp_path: Path):
+    frame_dir = tmp_path / "7" / "frames"
+    frame_dir.mkdir(parents=True)
+    (frame_dir / "frame-0001.png").write_bytes(b"one")
+    compositor = VideoCompositor()
+
+    frame_list_path = compositor._write_frame_list(frame_dir, [TimelineEntry(1, "短句", 0.2)])
+
+    assert "duration 0.500" in frame_list_path.read_text(encoding="utf-8")
 
 
 def test_video_compositor_does_not_mix_vfr_vsync_with_output_frame_rate(tmp_path: Path, monkeypatch):
@@ -134,6 +158,44 @@ def test_frame_renderer_outputs_1080p_frames(tmp_path: Path):
 
     with Image.open(frame_dir / "frame-0001.png") as image:
         assert image.size == (1920, 1080)
+
+
+def test_frame_renderer_localizes_export_frame_text(tmp_path: Path):
+    renderer = FrameRenderer(tmp_path)
+
+    assert renderer._display_algorithm("QUICK_SORT") == "快速排序"
+    assert renderer._display_step_title("Choose pivot") == "选择基准"
+    assert renderer._display_step_title("Compare 0 and 1") == "比较元素"
+    assert renderer._label("code_focus") == "源码定位"
+    assert renderer._display_step_title({"title": "Choose pivot", "displayTitle": "选择主元"}) == "选择主元"
+
+
+def test_export_pipeline_returns_warning_when_tts_falls_back_to_silent(tmp_path: Path, monkeypatch):
+    pipeline = ExportPipeline(tmp_path)
+    monkeypatch.setattr(pipeline.frame_renderer, "render_frames", lambda _payload: tmp_path / "9" / "frames")
+    monkeypatch.setattr(pipeline.tts_service, "build_silent_timeline", lambda steps: (None, [TimelineEntry(1, "讲解", 1.0)]))
+
+    def fail_tts(*_args):
+        raise RuntimeError("tts down")
+
+    monkeypatch.setattr(pipeline.tts_service, "build_audio_file", fail_tts)
+    monkeypatch.setattr(pipeline.subtitle_service, "build_subtitle_file", lambda export_task_id, timeline: tmp_path / "9" / "9.srt")
+    monkeypatch.setattr(pipeline.video_compositor, "compose", lambda export_task_id, frame_dir, subtitle_path, audio_path, timeline: (tmp_path / "9" / "9.mp4", []))
+
+    result = pipeline.build_export({
+        "exportTaskId": 9,
+        "summary": "摘要",
+        "sourceCode": "class Demo {}",
+        "ttsEnabled": True,
+        "subtitleEnabled": True,
+        "visualizationPayload": {
+            "algorithm": "QUICK_SORT",
+            "steps": [{"title": "Choose pivot", "narration": "讲解", "arrayState": [1], "activeIndices": [], "highlightedLines": []}],
+        },
+    })
+
+    assert result["status"] == "COMPLETED"
+    assert result["warnings"] == ["TTS_FAILED_FALLBACK_TO_SILENT"]
 
 
 def test_frame_renderer_centers_code_window_around_highlight(tmp_path: Path):

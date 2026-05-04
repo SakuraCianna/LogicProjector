@@ -64,14 +64,15 @@ class ExportTaskControllerTest {
     void shouldReturnExportTaskStatus() throws Exception {
         given(exportTaskService.getExportTask(anyLong(), anyLong())).willReturn(new ExportTaskResponse(
                 101L, 42L, "COMPLETED", 100, "/api/export-tasks/101/download", "/files/101.srt", "/files/101.mp3", null,
-                18, 1231, "2026-04-11T16:00:00Z", "2026-04-11T16:00:30Z"
+                "TTS_FAILED_FALLBACK_TO_SILENT", 18, 1231, "2026-04-11T16:00:00Z", "2026-04-11T16:00:30Z"
         ));
 
         mockMvc.perform(get("/api/export-tasks/101")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + TEST_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.videoUrl").value("/api/export-tasks/101/download"));
+                .andExpect(jsonPath("$.videoUrl").value("/api/export-tasks/101/download"))
+                .andExpect(jsonPath("$.warningMessage").value("TTS_FAILED_FALLBACK_TO_SILENT"));
     }
 
     @Test

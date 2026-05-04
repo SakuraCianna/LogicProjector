@@ -65,6 +65,21 @@ public class ExportTaskService {
             throw new ExportTaskException("GENERATION_NOT_READY");
         }
 
+        ExportTask reusableExportTask = exportTaskRepository
+                .findFirstByGenerationTask_IdAndUser_IdAndStatusInOrderByUpdatedAtDesc(
+                        generationTaskId,
+                        userId,
+                        List.of(ExportTaskStatus.PENDING, ExportTaskStatus.PROCESSING, ExportTaskStatus.COMPLETED))
+                .orElse(null);
+        if (reusableExportTask != null) {
+            return new CreateExportTaskResponse(
+                    reusableExportTask.getId(),
+                    generationTask.getId(),
+                    reusableExportTask.getStatus().name(),
+                    reusableExportTask.getProgress(),
+                    reusableExportTask.getCreditsFrozen());
+        }
+
         UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ExportTaskException("USER_NOT_FOUND"));
 
@@ -116,7 +131,13 @@ public class ExportTaskService {
             throw new ExportTaskException("EXPORT_NOT_READY");
         }
 
-        FileSystemResource resource = new FileSystemResource(Path.of(downloadRoot).resolve(exportTask.getVideoPath()));
+        Path normalizedRoot = Path.of(downloadRoot).toAbsolutePath().normalize();
+        Path videoPath = normalizedRoot.resolve(exportTask.getVideoPath()).normalize();
+        if (!videoPath.startsWith(normalizedRoot)) {
+            throw new ExportTaskException("EXPORT_FILE_MISSING");
+        }
+
+        FileSystemResource resource = new FileSystemResource(videoPath);
         if (!resource.exists()) {
             throw new ExportTaskException("EXPORT_FILE_MISSING");
         }

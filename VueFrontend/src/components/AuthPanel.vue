@@ -13,7 +13,11 @@
       </label>
       <label>
         <span>密码</span>
-        <input v-model="password" type="password" placeholder="密码" autocomplete="current-password">
+        <input v-model="password" type="password" placeholder="密码" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'">
+      </label>
+      <label v-if="mode === 'register'">
+        <span>确认密码</span>
+        <input v-model="confirmPassword" type="password" placeholder="确认密码" autocomplete="new-password">
       </label>
       <button class="primary-button" type="submit" :disabled="busy">{{ submitLabel }}</button>
     </form>
@@ -30,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { withoutSentencePeriod } from '../utils/displayText'
 
@@ -52,6 +56,8 @@ const emit = defineEmits<{
 const mode = ref<'login' | 'register'>('login')
 const username = ref('')
 const password = ref('')
+const confirmPassword = ref('')
+const localErrorMessage = ref('')
 
 const submitLabel = computed(() => {
   if (props.busy) {
@@ -61,16 +67,31 @@ const submitLabel = computed(() => {
   return mode.value === 'login' ? '登录' : '注册'
 })
 
-const displayErrorMessage = computed(() => withoutSentencePeriod(props.errorMessage))
+const displayErrorMessage = computed(() => withoutSentencePeriod(localErrorMessage.value || props.errorMessage))
 const displaySuccessMessage = computed(() => withoutSentencePeriod(props.successMessage))
+
+watch(() => props.successMessage, (message) => {
+  if (message) {
+    mode.value = 'login'
+    password.value = ''
+    confirmPassword.value = ''
+    localErrorMessage.value = ''
+  }
+})
 
 function submit() {
   if (props.busy) {
     return
   }
+  localErrorMessage.value = ''
 
   if (mode.value === 'login') {
     emit('login', { username: username.value, password: password.value })
+    return
+  }
+
+  if (password.value !== confirmPassword.value) {
+    localErrorMessage.value = '两次输入的密码不一致'
     return
   }
 
@@ -79,5 +100,8 @@ function submit() {
 
 function toggleMode() {
   mode.value = mode.value === 'login' ? 'register' : 'login'
+  password.value = ''
+  confirmPassword.value = ''
+  localErrorMessage.value = ''
 }
 </script>

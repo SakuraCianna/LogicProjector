@@ -1,5 +1,6 @@
 export interface VisualizationStep {
   title: string
+  displayTitle?: string | null
   narration: string
   arrayState: number[]
   activeIndices: number[]
@@ -64,6 +65,7 @@ export interface ExportTaskResponse {
   subtitleUrl: string | null
   audioUrl: string | null
   errorMessage: string | null
+  warningMessage?: string | null
   creditsFrozen: number | null
   creditsCharged: number | null
   createdAt: string

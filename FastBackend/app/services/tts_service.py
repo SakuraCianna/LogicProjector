@@ -14,6 +14,10 @@ class TimelineEntry:
     audio_path: Path | None = None
 
 
+def timeline_duration_seconds(entry: TimelineEntry) -> float:
+    return max(0.5, entry.duration_seconds)
+
+
 class TtsService:
     def __init__(
         self,

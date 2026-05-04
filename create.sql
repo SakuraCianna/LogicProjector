@@ -15,27 +15,6 @@ CREATE TABLE IF NOT EXISTS `users` (
     UNIQUE KEY `uk_users_email` (`email`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
-INSERT INTO
-    `users` (
-        `email`,
-        `password_hash`,
-        `credits_balance`,
-        `frozen_credits_balance`,
-        `status`
-    )
-VALUES (
-        'Sakura',
-        '$2a$10$nd6k/5zqFUUnya/K1.gU2uvVbR7G6tRehiDqu8.rk/ZgCY6ftWt4S',
-        1000000,
-        0,
-        'ACTIVE'
-    )
-ON DUPLICATE KEY UPDATE
-    `password_hash` = VALUES(`password_hash`),
-    `credits_balance` = VALUES(`credits_balance`),
-    `frozen_credits_balance` = VALUES(`frozen_credits_balance`),
-    `status` = VALUES(`status`);
-
 CREATE TABLE IF NOT EXISTS `generation_tasks` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL,
@@ -70,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `export_tasks` (
     `subtitle_path` VARCHAR(255) DEFAULT NULL,
     `audio_path` VARCHAR(255) DEFAULT NULL,
     `error_message` VARCHAR(255) DEFAULT NULL,
+    `warning_message` VARCHAR(255) DEFAULT NULL,
     `retry_count` INT NOT NULL,
     `last_processed_at` DATETIME(6) DEFAULT NULL,
     `created_at` DATETIME(6) NOT NULL,

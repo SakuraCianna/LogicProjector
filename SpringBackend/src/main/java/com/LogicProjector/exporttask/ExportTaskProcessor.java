@@ -79,7 +79,8 @@ public class ExportTaskProcessor {
                 failAndRefund(exportTask, "INSUFFICIENT_CREDITS", "Export settlement failed after render");
                 return;
             }
-            exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge);
+            exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge,
+                    summarizeWarnings(result.warnings()));
             systemLogService.info(exportTask.getUser().getId(), exportTask.getId(), "export", "Export processing completed");
         } catch (IOException exception) {
             failAndRefund(exportTask, "INVALID_VISUALIZATION_PAYLOAD", "Export failed due to invalid visualization payload");
@@ -148,6 +149,20 @@ public class ExportTaskProcessor {
             return summary;
         }
 
+        return summary.substring(0, TASK_ERROR_MESSAGE_MAX_LENGTH - 3) + "...";
+    }
+
+    private String summarizeWarnings(java.util.List<String> warnings) {
+        if (warnings == null || warnings.isEmpty()) {
+            return null;
+        }
+        String summary = String.join(",", warnings).trim();
+        if (summary.isEmpty()) {
+            return null;
+        }
+        if (summary.length() <= TASK_ERROR_MESSAGE_MAX_LENGTH) {
+            return summary;
+        }
         return summary.substring(0, TASK_ERROR_MESSAGE_MAX_LENGTH - 3) + "...";
     }
 }

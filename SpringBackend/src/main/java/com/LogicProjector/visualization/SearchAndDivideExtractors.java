@@ -13,8 +13,9 @@ public final class SearchAndDivideExtractors {
     public static VisualizationStateExtractor binarySearch() {
         return (algorithm, input, sourceCode) -> {
             int middle = input.size() / 2;
+            List<Integer> checkLines = lineNumbers(sourceCode, SearchAndDivideExtractors::isBinarySearchCheckLine);
             List<VisualizationStep> steps = List.of(
-                    new VisualizationStep("Check middle", "Focus the middle candidate", List.copyOf(input), List.of(middle), List.of(4, 5))
+                    new VisualizationStep("Check middle", "Focus the middle candidate", List.copyOf(input), List.of(middle), checkLines)
             );
             return new VisualizationPayload(algorithm, steps);
         };
@@ -26,7 +27,7 @@ public final class SearchAndDivideExtractors {
             List<VisualizationStep> steps = new ArrayList<>();
             QuickSortLines lines = quickSortLines(sourceCode);
             quickSort(values, 0, values.size() - 1, steps, lines);
-            steps.add(new VisualizationStep("Quick sort complete", "All partitions are sorted", List.copyOf(values), List.of(), List.of(8)));
+            steps.add(new VisualizationStep("Quick sort complete", "All partitions are sorted", List.copyOf(values), List.of(), List.of()));
             return new VisualizationPayload(algorithm, steps);
         };
     }
@@ -35,8 +36,9 @@ public final class SearchAndDivideExtractors {
         return (algorithm, input, sourceCode) -> {
             List<Integer> values = new ArrayList<>(input);
             List<VisualizationStep> steps = new ArrayList<>();
-            mergeSort(values, 0, values.size() - 1, steps);
-            steps.add(new VisualizationStep("Merge sort complete", "All ranges have been merged back in order", List.copyOf(values), List.of(), List.of(9)));
+            MergeSortLines lines = mergeSortLines(sourceCode);
+            mergeSort(values, 0, values.size() - 1, steps, lines);
+            steps.add(new VisualizationStep("Merge sort complete", "All ranges have been merged back in order", List.copyOf(values), List.of(), List.of()));
             return new VisualizationPayload(algorithm, steps);
         };
     }
@@ -70,11 +72,19 @@ public final class SearchAndDivideExtractors {
 
     private static QuickSortLines quickSortLines(String sourceCode) {
         return new QuickSortLines(
-                lineNumbers(sourceCode, List.of(3), line -> compact(line).contains("pivot=") && compact(line).contains("[high]")),
-                lineNumbers(sourceCode, List.of(4, 5), line -> compact(line).contains("for(") && compact(line).contains("j<high")
+                lineNumbers(sourceCode, line -> compact(line).contains("pivot=") && compact(line).contains("[high]")),
+                lineNumbers(sourceCode, line -> compact(line).contains("for(") && compact(line).contains("j<high")
                         || compact(line).contains("[j]") && compact(line).contains("pivot") && compact(line).contains("<=")),
-                lineNumbers(sourceCode, List.of(6), SearchAndDivideExtractors::isQuickSortMoveLine),
-                lineNumbers(sourceCode, List.of(7), SearchAndDivideExtractors::isQuickSortPlaceLine));
+                lineNumbers(sourceCode, SearchAndDivideExtractors::isQuickSortMoveLine),
+                lineNumbers(sourceCode, SearchAndDivideExtractors::isQuickSortPlaceLine));
+    }
+
+    private static MergeSortLines mergeSortLines(String sourceCode) {
+        return new MergeSortLines(
+                lineNumbers(sourceCode, SearchAndDivideExtractors::isMergeSortSplitLine),
+                lineNumbers(sourceCode, SearchAndDivideExtractors::isMergeNextLine),
+                lineNumbers(sourceCode, SearchAndDivideExtractors::isAppendRemainingLeftLine),
+                lineNumbers(sourceCode, SearchAndDivideExtractors::isAppendRemainingRightLine));
     }
 
     private static boolean isQuickSortMoveLine(String line) {
@@ -95,9 +105,47 @@ public final class SearchAndDivideExtractors {
         return compact.contains("i+1") || compact.contains("[high]") && compact.contains("temp") || compact.contains("returni+1");
     }
 
-    private static List<Integer> lineNumbers(String sourceCode, List<Integer> fallback, Predicate<String> matcher) {
+    private static boolean isBinarySearchCheckLine(String line) {
+        String compact = compact(line);
+        return compact.contains("while(") && compact.contains("left<=right")
+                || compact.contains("mid=")
+                || compact.contains("[mid]") && (compact.contains("==") || compact.contains("<") || compact.contains(">"));
+    }
+
+    private static boolean isMergeSortSplitLine(String line) {
+        String compact = compact(line).toLowerCase();
+        return compact.contains("mid=")
+                || compact.contains("mergesort(")
+                || compact.contains("merge(") && compact.contains("mid");
+    }
+
+    private static boolean isMergeNextLine(String line) {
+        String compact = compact(line).toLowerCase();
+        return compact.contains("while(") && compact.contains("&&")
+                || compact.contains("[i]") && compact.contains("[j]")
+                || compact.contains("set(")
+                || compact.contains("[left+k]");
+    }
+
+    private static boolean isAppendRemainingLeftLine(String line) {
+        String compact = compact(line).toLowerCase();
+        return compact.contains("while(") && (compact.contains("i<") || compact.contains("i<="))
+                || compact.contains("leftpart")
+                || compact.contains("array[i++]")
+                || compact.contains("arr[i++]");
+    }
+
+    private static boolean isAppendRemainingRightLine(String line) {
+        String compact = compact(line).toLowerCase();
+        return compact.contains("while(") && (compact.contains("j<") || compact.contains("j<="))
+                || compact.contains("rightpart")
+                || compact.contains("array[j++]")
+                || compact.contains("arr[j++]");
+    }
+
+    private static List<Integer> lineNumbers(String sourceCode, Predicate<String> matcher) {
         if (sourceCode == null || sourceCode.isBlank()) {
-            return fallback;
+            return List.of();
         }
 
         List<Integer> matches = new ArrayList<>();
@@ -107,7 +155,7 @@ public final class SearchAndDivideExtractors {
                 matches.add(index + 1);
             }
         }
-        return matches.isEmpty() ? fallback : matches;
+        return matches;
     }
 
     private static String compact(String line) {
@@ -122,18 +170,18 @@ public final class SearchAndDivideExtractors {
     ) {
     }
 
-    private static void mergeSort(List<Integer> values, int left, int right, List<VisualizationStep> steps) {
+    private static void mergeSort(List<Integer> values, int left, int right, List<VisualizationStep> steps, MergeSortLines lines) {
         if (left >= right) {
             return;
         }
 
         int mid = (left + right) / 2;
-        mergeSort(values, left, mid, steps);
-        mergeSort(values, mid + 1, right, steps);
-        merge(values, left, mid, right, steps);
+        mergeSort(values, left, mid, steps, lines);
+        mergeSort(values, mid + 1, right, steps, lines);
+        merge(values, left, mid, right, steps, lines);
     }
 
-    private static void merge(List<Integer> values, int left, int mid, int right, List<VisualizationStep> steps) {
+    private static void merge(List<Integer> values, int left, int mid, int right, List<VisualizationStep> steps, MergeSortLines lines) {
         List<Integer> leftPart = new ArrayList<>(values.subList(left, mid + 1));
         List<Integer> rightPart = new ArrayList<>(values.subList(mid + 1, right + 1));
 
@@ -141,7 +189,7 @@ public final class SearchAndDivideExtractors {
         int j = 0;
         int k = left;
 
-        steps.add(new VisualizationStep("Split range", "Prepare two sorted halves for merge", List.copyOf(values), List.of(left, right), List.of(3, 4)));
+        steps.add(new VisualizationStep("Split range", "Prepare two sorted halves for merge", List.copyOf(values), List.of(left, right), lines.split()));
 
         while (i < leftPart.size() && j < rightPart.size()) {
             if (leftPart.get(i) <= rightPart.get(j)) {
@@ -149,17 +197,25 @@ public final class SearchAndDivideExtractors {
             } else {
                 values.set(k++, rightPart.get(j++));
             }
-            steps.add(new VisualizationStep("Merge next value", "Write the smaller front value back into the array", List.copyOf(values), List.of(k - 1), List.of(5, 6)));
+            steps.add(new VisualizationStep("Merge next value", "Write the smaller front value back into the array", List.copyOf(values), List.of(k - 1), lines.mergeNext()));
         }
 
         while (i < leftPart.size()) {
             values.set(k++, leftPart.get(i++));
-            steps.add(new VisualizationStep("Append remaining left", "Copy leftover values from the left half", List.copyOf(values), List.of(k - 1), List.of(7)));
+            steps.add(new VisualizationStep("Append remaining left", "Copy leftover values from the left half", List.copyOf(values), List.of(k - 1), lines.appendLeft()));
         }
 
         while (j < rightPart.size()) {
             values.set(k++, rightPart.get(j++));
-            steps.add(new VisualizationStep("Append remaining right", "Copy leftover values from the right half", List.copyOf(values), List.of(k - 1), List.of(8)));
+            steps.add(new VisualizationStep("Append remaining right", "Copy leftover values from the right half", List.copyOf(values), List.of(k - 1), lines.appendRight()));
         }
+    }
+
+    private record MergeSortLines(
+            List<Integer> split,
+            List<Integer> mergeNext,
+            List<Integer> appendLeft,
+            List<Integer> appendRight
+    ) {
     }
 }
