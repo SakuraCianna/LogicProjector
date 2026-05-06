@@ -49,11 +49,14 @@ public class GenerationTaskService {
 
         UserAccount user = userAccountRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        if (user.getCreditsBalance() < billingService.generationCharge()) {
+        try {
+            user.freezeCredits(billingService.generationCharge());
+        } catch (IllegalStateException exception) {
             throw new IllegalArgumentException("INSUFFICIENT_CREDITS");
         }
 
         GenerationTask task = generationTaskRepository.save(GenerationTask.pending(user, request.sourceCode(), request.language()));
+        billingService.recordGenerationFreeze(user, task);
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {

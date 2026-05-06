@@ -36,6 +36,8 @@ const firstHighlightedLine = computed(() => {
 function setLineRef(element: unknown, lineNumber: number) {
   if (element instanceof Element) {
     lineRefs.value.set(lineNumber, element)
+  } else {
+    lineRefs.value.delete(lineNumber)
   }
 }
 

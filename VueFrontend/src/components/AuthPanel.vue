@@ -85,6 +85,16 @@ function submit() {
   }
   localErrorMessage.value = ''
 
+  if (!username.value.trim()) {
+    localErrorMessage.value = '请输入用户名'
+    return
+  }
+
+  if (!password.value) {
+    localErrorMessage.value = '请输入密码'
+    return
+  }
+
   if (mode.value === 'login') {
     emit('login', { username: username.value, password: password.value })
     return

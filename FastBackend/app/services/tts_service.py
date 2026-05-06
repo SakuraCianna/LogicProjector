@@ -41,6 +41,9 @@ class TtsService:
         clip_paths: list[Path] = []
         timeline: list[TimelineEntry] = []
 
+        if not steps:
+            return audio_path, []
+
         for index, step in enumerate(steps, start=1):
             narration_text = step.get("narration") or step.get("title") or summary
             clip_path = audio_path.parent / f"step-{index:04d}.mp3"
@@ -62,8 +65,11 @@ class TtsService:
     ) -> tuple[None, list[TimelineEntry]]:
         timeline: list[TimelineEntry] = []
         for index, step in enumerate(steps, start=1):
-            duration_seconds = durations[index - 1] if durations and index <= len(durations) else default_duration_seconds
             narration_text = step.get("narration") or step.get("title") or ""
+            if durations and index <= len(durations):
+                duration_seconds = durations[index - 1]
+            else:
+                duration_seconds = max(default_duration_seconds, len(narration_text) * 0.2)
             timeline.append(TimelineEntry(index, narration_text, duration_seconds))
         return None, timeline
 
@@ -85,9 +91,13 @@ class TtsService:
             "default=noprint_wrappers=1:nokey=1",
             str(audio_path),
         ]
-        result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=15)
-        duration_seconds = float(result.stdout.strip())
-        return max(0.5, duration_seconds)
+        try:
+            result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=15)
+            last_line = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+            duration_seconds = float(last_line)
+            return max(0.5, duration_seconds)
+        except (ValueError, IndexError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            return 3.0
 
     def _concatenate_audio_files(self, clip_paths: list[Path], output_path: Path) -> None:
         concat_path = output_path.parent / "audio-concat.txt"

@@ -124,10 +124,14 @@ class FrameRenderer:
         values = step["arrayState"]
         bar_positions = self._bar_positions(values)
         active_indices = set(step.get("activeIndices", []))
+        max_value = max(values) if values else 1
+        available_height = 280
+        scale_factor = available_height / max_value if max_value > 0 else 1.0
+        scale_factor = min(scale_factor, 22)
 
         for bar_index, (left, bar_width) in enumerate(bar_positions):
             value = values[bar_index]
-            top = 450 - value * 22
+            top = 450 - int(value * scale_factor)
             right = left + bar_width
             active = bar_index in active_indices
             fill = (249, 115, 22) if active else (56, 189, 248)

@@ -35,8 +35,11 @@ class VideoCompositor:
             escaped_subtitle_path = (
                 subtitle_path.resolve()
                 .as_posix()
+                .replace("\\", "\\\\")
                 .replace(":", "\\:")
                 .replace("'", "\\'")
+                .replace("[", "\\[")
+                .replace("]", "\\]")
             )
             command.extend(["-vf", f"subtitles='{escaped_subtitle_path}'"])
         command.extend(["-r", "30", "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p"])

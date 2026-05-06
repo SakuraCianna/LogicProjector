@@ -24,7 +24,7 @@ class ExportPipeline:
         export_task_id = payload["exportTaskId"]
         summary = payload["summary"]
         steps = payload["visualizationPayload"]["steps"]
-        narration_text = summary + " " + " ".join(step["narration"] for step in steps)
+        narration_text = summary + " " + " ".join(step.get("narration", "") for step in steps)
         warnings: list[str] = []
         try:
             frame_dir = self.frame_renderer.render_frames(payload)
@@ -54,7 +54,7 @@ class ExportPipeline:
                 video_path=video_path_relative,
                 subtitle_path=subtitle_path_relative,
                 audio_path=audio_path_relative,
-                token_usage=len(narration_text),
+                token_usage=self._estimate_tokens(narration_text),
                 render_seconds=render_seconds,
                 warnings=warnings,
             )
@@ -63,6 +63,14 @@ class ExportPipeline:
 
     def _relative_output_path(self, path: Path | None) -> str | None:
         return str(path.relative_to(self.output_root)) if path else None
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        if not text:
+            return 0
+        cjk_count = sum(1 for ch in text if "\u4e00" <= ch <= "\u9fff")
+        other_count = len(text) - cjk_count
+        return max(1, int(cjk_count * 1.5 + other_count * 0.25))
 
     def _success_result(
         self,

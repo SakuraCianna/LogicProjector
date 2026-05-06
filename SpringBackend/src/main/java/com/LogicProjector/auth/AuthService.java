@@ -1,5 +1,6 @@
 package com.LogicProjector.auth;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,16 +33,19 @@ public class AuthService {
                     throw new AuthException("USERNAME_ALREADY_EXISTS");
                 });
 
-        UserAccount user = userAccountRepository.save(new UserAccount(
-                null,
-                request.username(),
-                passwordEncoder.encode(request.password()),
-                300,
-                0,
-                "ACTIVE"
-        ));
-
-        return toProfile(user);
+        try {
+            UserAccount user = userAccountRepository.save(new UserAccount(
+                    null,
+                    request.username(),
+                    passwordEncoder.encode(request.password()),
+                    300,
+                    0,
+                    "ACTIVE"
+            ));
+            return toProfile(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw new AuthException("USERNAME_ALREADY_EXISTS");
+        }
     }
 
     public AuthResponse login(AuthRequest request) {

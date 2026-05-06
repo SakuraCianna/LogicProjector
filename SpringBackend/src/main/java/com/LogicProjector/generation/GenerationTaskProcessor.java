@@ -85,11 +85,16 @@ public class GenerationTaskProcessor {
             task.complete(recognition.algorithm().name(), recognition.confidence(), payloadJson, narration.summary());
             UserAccount user = userAccountRepository.findByIdForUpdate(task.getUser().getId())
                     .orElseThrow(() -> new IllegalArgumentException("User not found: " + task.getUser().getId()));
-            billingService.chargeForCompletedGeneration(user, task);
+            billingService.settleGenerationCredits(user, task);
             systemLogService.info(task.getUser().getId(), task.getId(), "generation", "Generation processing completed");
         } catch (UnsupportedAlgorithmException exception) {
+            releaseFrozenOnFailure(task);
             task.fail(summarizeErrorMessage(exception.getMessage(), GENERATION_UNSUPPORTED));
             systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation rejected as unsupported", exception.getMessage());
+        } catch (RuntimeException exception) {
+            releaseFrozenOnFailure(task);
+            task.fail(summarizeErrorMessage(exception.getMessage(), "GENERATION_PROCESSING_ERROR"));
+            systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation processing failed unexpectedly", exception.getMessage());
         }
     }
 
@@ -102,6 +107,7 @@ public class GenerationTaskProcessor {
             return;
         }
 
+        releaseFrozenOnFailure(task);
         task.fail(summarizeErrorMessage(errorMessage, GENERATION_DISPATCH_FAILED));
         systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation dispatch failed", errorMessage);
     }
@@ -115,8 +121,20 @@ public class GenerationTaskProcessor {
             return;
         }
 
+        releaseFrozenOnFailure(task);
         task.fail(summarizeErrorMessage(errorMessage, GENERATION_DEAD_LETTER));
         systemLogService.error(task.getUser().getId(), task.getId(), "generation", "Generation moved to dead-letter queue", errorMessage);
+    }
+
+    private void releaseFrozenOnFailure(GenerationTask task) {
+        try {
+            UserAccount user = userAccountRepository.findByIdForUpdate(task.getUser().getId())
+                    .orElse(null);
+            if (user != null && user.getFrozenCreditsBalance() >= billingService.generationCharge()) {
+                billingService.releaseGenerationCredits(user, task);
+            }
+        } catch (RuntimeException ignored) {
+        }
     }
 
     private String summarizeErrorMessage(String errorMessage, String fallback) {

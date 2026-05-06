@@ -100,7 +100,7 @@
               <TaskSummaryCard :task="task" :export-busy="exportBusy || viewState === 'exporting'"
                 @export="handleExport" />
               <ExplanationPanel :step="currentStep" />
-              <ExportStatusCard v-if="exportTask" :export-task="exportTask" @retry="handleExport" />
+              <ExportStatusCard v-if="exportTask" :export-task="exportTask" @retry="handleExport" @auth-expired="handleAuthExpired" />
             </aside>
             <CodeHighlightPanel :source-code="sourceCode" :highlighted-lines="currentStep.highlightedLines" />
           </section>
@@ -445,7 +445,7 @@ function formatRechargeStatus(status: string) {
 }
 
 function formatDisplayTime(value: string) {
-  return value.replace('T', ' ').replace(/:\d{2}(?:\.\d+)?Z?$/u, '')
+  return value.replace('T', ' ').replace(/:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/u, '')
 }
 
 function normalizeSourceLanguage(value: string | null | undefined): SourceLanguage {
@@ -705,9 +705,7 @@ function openExportsPage() {
 
 async function openRechargePage() {
   activePage.value = 'recharge'
-  if (rechargePackages.value.length === 0) {
-    await refreshRechargeStore()
-  }
+  await refreshRechargeStore()
 }
 
 async function handleSelectGeneration(taskId: number) {
@@ -793,7 +791,11 @@ async function handleSubmit(nextSourceCode: string) {
     selectedHistoryKind.value = 'generation'
     selectedHistoryId.value = task.value.id
     activePage.value = 'player'
-    await refreshRecentActivity()
+    try {
+      await refreshRecentActivity()
+    } catch (refreshError) {
+      activityErrorMessage.value = '刷新历史记录失败'
+    }
     if (task.value.status !== 'COMPLETED') {
       await refreshGenerationTask(task.value.id)
       if (task.value.status !== 'COMPLETED' && task.value.status !== 'FAILED') {
@@ -813,6 +815,9 @@ async function handleSubmit(nextSourceCode: string) {
 }
 
 async function handleRecharge(packageCode: string) {
+  if (rechargeBusy.value) {
+    return
+  }
   try {
     rechargeBusy.value = true
     activityErrorMessage.value = ''
@@ -853,11 +858,18 @@ async function handleLogin(credentials: { username: string; password: string }) 
     const response = await login(credentials.username, credentials.password)
     setStoredToken(response.token)
     currentUser.value = response.user
-    await refreshRecentActivity()
   } catch (error) {
     authErrorMessage.value = getErrorMessage(error, '登录失败')
   } finally {
     authBusy.value = false
+  }
+
+  if (currentUser.value) {
+    try {
+      await refreshRecentActivity()
+    } catch (error) {
+      activityErrorMessage.value = '加载历史记录失败'
+    }
   }
 }
 
@@ -922,7 +934,11 @@ async function handleExport() {
     exportMeta.value = await createExportTask(task.value.id)
     selectedHistoryKind.value = 'export'
     selectedHistoryId.value = exportMeta.value.id
-    await refreshRecentActivity()
+    try {
+      await refreshRecentActivity()
+    } catch (refreshError) {
+      activityErrorMessage.value = '刷新历史记录失败'
+    }
     await refreshExportTask(exportMeta.value.id)
 
     if (exportTask.value && exportTask.value.status !== 'COMPLETED' && exportTask.value.status !== 'FAILED') {
@@ -1028,7 +1044,6 @@ onMounted(async () => {
 
   try {
     currentUser.value = await me()
-    await refreshRecentActivity()
   } catch (error) {
     if (isAuthExpiredError(error)) {
       clearStoredToken()
@@ -1037,6 +1052,13 @@ onMounted(async () => {
       authErrorMessage.value = '无法恢复登录状态，请重新登录'
     }
     currentUser.value = null
+    return
+  }
+
+  try {
+    await refreshRecentActivity()
+  } catch (error) {
+    activityErrorMessage.value = '加载历史记录失败，请手动刷新'
   }
 })
 </script>

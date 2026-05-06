@@ -36,6 +36,44 @@ public class BillingService {
         return GENERATION_CHARGE;
     }
 
+    public void recordGenerationFreeze(UserAccount user, GenerationTask task) {
+        billingRecordRepository.save(new BillingRecord(
+                null,
+                user,
+                task,
+                "GENERATION_FREEZE",
+                -GENERATION_CHARGE,
+                user.getCreditsBalance(),
+                "Freeze credits for generation task " + task.getId()
+        ));
+    }
+
+    public void settleGenerationCredits(UserAccount user, GenerationTask task) {
+        user.settleFrozenCredits(GENERATION_CHARGE, GENERATION_CHARGE);
+        billingRecordRepository.save(new BillingRecord(
+                null,
+                user,
+                task,
+                "USAGE",
+                -GENERATION_CHARGE,
+                user.getCreditsBalance(),
+                "Algorithm visualization generation"
+        ));
+    }
+
+    public void releaseGenerationCredits(UserAccount user, GenerationTask task) {
+        user.releaseFrozenCredits(GENERATION_CHARGE);
+        billingRecordRepository.save(new BillingRecord(
+                null,
+                user,
+                task,
+                "GENERATION_REFUND",
+                GENERATION_CHARGE,
+                user.getCreditsBalance(),
+                "Release frozen credits for generation task " + task.getId()
+        ));
+    }
+
     public void recordRecharge(UserAccount user, int credits, Long rechargeOrderId) {
         billingRecordRepository.save(new BillingRecord(
                 null,

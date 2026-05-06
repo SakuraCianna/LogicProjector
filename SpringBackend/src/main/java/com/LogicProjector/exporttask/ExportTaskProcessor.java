@@ -71,17 +71,28 @@ public class ExportTaskProcessor {
                 return;
             }
 
-            int actualCharge = result.tokenUsage() + result.renderSeconds() + result.concurrencyUnits();
+            int rawCharge = result.tokenUsage() + result.renderSeconds() + result.concurrencyUnits();
+            int actualCharge = Math.max(rawCharge, 1);
             UserAccount user = lockedUser(exportTask);
+            boolean settled = false;
             try {
                 billingService.settleExportCredits(user, exportTask.getGenerationTask(), exportTask, actualCharge);
+                settled = true;
             } catch (IllegalStateException settlementException) {
                 failAndRefund(exportTask, "INSUFFICIENT_CREDITS", "Export settlement failed after render");
                 return;
             }
-            exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge,
-                    summarizeWarnings(result.warnings()));
-            systemLogService.info(exportTask.getUser().getId(), exportTask.getId(), "export", "Export processing completed");
+            try {
+                exportTask.complete(result.videoPath(), result.subtitlePath(), result.audioPath(), actualCharge,
+                        summarizeWarnings(result.warnings()));
+                systemLogService.info(exportTask.getUser().getId(), exportTask.getId(), "export", "Export processing completed");
+            } catch (RuntimeException completionException) {
+                if (settled) {
+                    taskFailOnly(exportTask, summarizeErrorMessage(completionException.getMessage(), "EXPORT_COMPLETION_ERROR"), "Export completion failed after settlement");
+                } else {
+                    failAndRefund(exportTask, summarizeErrorMessage(completionException.getMessage(), "EXPORT_COMPLETION_ERROR"), "Export completion failed");
+                }
+            }
         } catch (IOException exception) {
             failAndRefund(exportTask, "INVALID_VISUALIZATION_PAYLOAD", "Export failed due to invalid visualization payload");
         } catch (RuntimeException exception) {
@@ -123,6 +134,11 @@ public class ExportTaskProcessor {
         String taskErrorMessage = summarizeErrorMessage(errorMessage, "EXPORT_FAILED");
         billingService.releaseExportCredits(lockedUser(exportTask), exportTask.getGenerationTask(), exportTask);
         exportTask.fail(taskErrorMessage);
+        systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", logMessage, errorMessage);
+    }
+
+    private void taskFailOnly(ExportTask exportTask, String errorMessage, String logMessage) {
+        exportTask.fail(errorMessage);
         systemLogService.error(exportTask.getUser().getId(), exportTask.getId(), "export", logMessage, errorMessage);
     }
 

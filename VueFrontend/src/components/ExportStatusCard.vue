@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import { downloadExportVideo } from '../api/pasApi'
+import { downloadExportVideo, AuthExpiredError } from '../api/pasApi'
 import type { ExportTaskResponse } from '../types/pas'
 import { withoutSentencePeriod } from '../utils/displayText'
 
@@ -45,8 +45,9 @@ const props = defineProps<{
   exportTask: ExportTaskResponse
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   retry: []
+  'auth-expired': []
 }>()
 
 const downloadBusy = ref(false)
@@ -69,6 +70,10 @@ async function handleDownload() {
     const filename = `export-${props.exportTask.id}.mp4`
     await downloadExportVideo(props.exportTask.id, filename)
   } catch (error) {
+    if (error instanceof AuthExpiredError) {
+      emit('auth-expired')
+      return
+    }
     downloadError.value = error instanceof Error ? error.message : '下载失败'
   } finally {
     downloadBusy.value = false

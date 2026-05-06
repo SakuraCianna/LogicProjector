@@ -4,6 +4,5 @@ public enum GenerationTaskStatus {
     PENDING,
     ANALYZING,
     COMPLETED,
-    FAILED,
-    EXPORTING
+    FAILED
 }
